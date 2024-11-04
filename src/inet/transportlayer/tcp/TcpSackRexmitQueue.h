@@ -186,6 +186,10 @@ class INET_API TcpSackRexmitQueue
      */
     virtual void checkSackBlock(uint32_t seqNum, uint32_t& length, bool& sacked, bool& rexmitted);// const;
 
+    virtual void checkSackBlockIter(uint32_t seqNum, uint32_t& length, bool& sacked, bool& rexmitted, std::map<uint32_t, Region>::iterator& iter);// const;
+
+    virtual std::map<uint32_t, Region>::iterator searchSackBlock(uint32_t seqNum);// const;
+
     virtual uint32_t getInFlight();// const;
 
   protected:

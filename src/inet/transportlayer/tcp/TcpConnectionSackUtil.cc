@@ -345,7 +345,6 @@ void TcpConnection::sendDataDuringLossRecoveryPhase(uint32_t congestionWindow)
         // and the given segment sent.  If NextSeg () returns failure (no
         // data to send) return without sending anything (i.e., terminate
         // steps C.1 -- C.5)."
-
         uint32_t seqNum;
 
         if (!nextSeg(seqNum)) // if nextSeg() returns false (=failure): terminate steps C.1 -- C.5
