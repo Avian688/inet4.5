@@ -485,20 +485,20 @@ uint32_t TcpSackRexmitQueue::getHighestSackedSeqNum() //const
 
 uint32_t TcpSackRexmitQueue::getHighestRexmittedSeqNum() //const
 {
-    if(simTime() > 99.8){
-         std::cout << "\n TOTALS: \n";
-         std::cout << "discardUpTo TIME: " <<  discardUpToTime << "\n";
-         std::cout << "enqueueSentData TIME: " <<  enqueueSentDataTime << "\n";
-         std::cout << "setSackedBit TIME: " <<  setSackedBitTime << "\n";
-         std::cout << "getSackedBit TIME: " <<  getSackedBitTime << "\n";
-         std::cout << "getHighestSackedSeqNum TIME: " <<  getHighestSackedSeqNumTime << "\n";
-         std::cout << "getHighestRexmittedSeqNum TIME: " <<  getHighestRexmittedSeqNumTime << "\n";
-         std::cout << "checkRexmitQueueForSackedOrRexmittedSegments TIME: " <<  checkRexmitQueueForSackedOrRexmittedSegmentsTime << "\n";
-         std::cout << "getTotalAmountOfSackedBytes TIME: " <<  getTotalAmountOfSackedBytesTime << "\n";
-         std::cout << "getAmountOfSackedBytes TIME: " <<  getAmountOfSackedBytesTime << "\n";
-         std::cout << "getNumOfDiscontiguousSacks TIME: " <<  getNumOfDiscontiguousSacksTime << "\n";
-         std::cout << "checkSackBlock TIME: " <<  checkSackBlockTime << "\n";
-     }
+//    if(simTime() > 99.8){
+//         std::cout << "\n TOTALS: \n";
+//         std::cout << "discardUpTo TIME: " <<  discardUpToTime << "\n";
+//         std::cout << "enqueueSentData TIME: " <<  enqueueSentDataTime << "\n";
+//         std::cout << "setSackedBit TIME: " <<  setSackedBitTime << "\n";
+//         std::cout << "getSackedBit TIME: " <<  getSackedBitTime << "\n";
+//         std::cout << "getHighestSackedSeqNum TIME: " <<  getHighestSackedSeqNumTime << "\n";
+//         std::cout << "getHighestRexmittedSeqNum TIME: " <<  getHighestRexmittedSeqNumTime << "\n";
+//         std::cout << "checkRexmitQueueForSackedOrRexmittedSegments TIME: " <<  checkRexmitQueueForSackedOrRexmittedSegmentsTime << "\n";
+//         std::cout << "getTotalAmountOfSackedBytes TIME: " <<  getTotalAmountOfSackedBytesTime << "\n";
+//         std::cout << "getAmountOfSackedBytes TIME: " <<  getAmountOfSackedBytesTime << "\n";
+//         std::cout << "getNumOfDiscontiguousSacks TIME: " <<  getNumOfDiscontiguousSacksTime << "\n";
+//         std::cout << "checkSackBlock TIME: " <<  checkSackBlockTime << "\n";
+//     }
 
     auto start = std::chrono::high_resolution_clock::now();
     for (auto iter = rexmitMap.rbegin(); iter != rexmitMap.rend(); iter++) {

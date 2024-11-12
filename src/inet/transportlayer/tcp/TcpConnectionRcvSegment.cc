@@ -954,7 +954,6 @@ TcpEventCode TcpConnection::processSegmentInSynSent(Packet *tcpSegment, const Pt
         if (tcpHeader->getAckBit()) {
             state->snd_una = tcpHeader->getAckNo();
             sendQueue->discardUpTo(state->snd_una);
-
             if (state->sack_enabled)
                 rexmitQueue->discardUpTo(state->snd_una);
 
