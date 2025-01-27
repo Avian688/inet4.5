@@ -708,10 +708,10 @@ void TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
             if(rit->second.sacked == false && rit->second.lost == false){
                 rit->second.lost = true;
                 m_lostOut += rit->second.endSeqNum - rit->second.beginSeqNum;
-                if(rit->second.rexmitted == true){
-                    rit->second.rexmitted = false;
-                    m_retrans += rit->second.endSeqNum - rit->second.beginSeqNum;
-                }
+//                if(rit->second.rexmitted == true){
+//                    rit->second.rexmitted = false;
+//                    m_retrans -= rit->second.endSeqNum - rit->second.beginSeqNum;
+//                }
             }
         }
     }
@@ -722,10 +722,10 @@ void TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
         if(item->second.lost == false){
             rit->second.lost = true;
             m_lostOut += rit->second.endSeqNum - rit->second.beginSeqNum;
-            if(rit->second.rexmitted == true){
-                rit->second.rexmitted = false;
-                m_retrans += rit->second.endSeqNum - rit->second.beginSeqNum;
-            }
+//            if(rit->second.rexmitted == true){
+//                rit->second.rexmitted = false;
+//                m_retrans -= rit->second.endSeqNum - rit->second.beginSeqNum;
+//            }
         }
     }
 
@@ -806,13 +806,28 @@ uint32_t TcpSackRexmitQueue::getNumOfDiscontiguousSacks(uint32_t fromSeqNum)//co
         }
         if(counter >= 3){
             //std::cout << "\n COUNTER: " << counter << endl;
+            if (!iter->second.sacked && !iter->second.lost)
+            {
+                iter->second.lost = true;
+                m_lostOut += iter->second.endSeqNum - iter->second.beginSeqNum;
+            }
             auto end = std::chrono::high_resolution_clock::now();
             auto elapsed = end - start;
             getNumOfDiscontiguousSacksTime += std::chrono::duration<double>(elapsed).count();
-            break;
+            //break;
         }
         prevSacked = iter->second.sacked;
         iter++;
+    }
+
+    if (counter >= 3)
+    {
+        auto iter = rexmitMap.begin();
+        if (!iter->second.lost)
+        {
+            iter->second.lost = true;
+            m_lostOut += iter->second.endSeqNum - iter->second.beginSeqNum;
+        }
     }
     //std::cout << "\n COUNT TEST: " << countTest << endl;
     //std::cout << "\n" << detailedInfo() << endl;
