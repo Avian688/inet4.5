@@ -44,18 +44,6 @@ class INET_API TcpSackRexmitQueue
     uint32_t begin; // 1st sequence number stored
     uint32_t end; // last sequence number stored + 1
 
-    double discardUpToTime;
-    double enqueueSentDataTime;
-    double setSackedBitTime;
-    double getSackedBitTime;
-    double getHighestSackedSeqNumTime;
-    double getHighestRexmittedSeqNumTime;
-    double checkRexmitQueueForSackedOrRexmittedSegmentsTime;
-    double getTotalAmountOfSackedBytesTime;
-    double getAmountOfSackedBytesTime;
-    double getNumOfDiscontiguousSacksTime;
-    double checkSackBlockTime;
-
     uint32_t m_sentSize;
     uint32_t m_sackedOut;
     uint32_t m_lostOut;
@@ -127,6 +115,9 @@ class INET_API TcpSackRexmitQueue
      */
     virtual void setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum);
 
+    virtual std::list<uint32_t> setSackedBitList(uint32_t fromSeqNum, uint32_t toSeqNum);
+
+
     /**
      * Returns SackedBit value of seqNum.
      */
@@ -196,7 +187,7 @@ class INET_API TcpSackRexmitQueue
      */
     virtual void checkSackBlock(uint32_t seqNum, uint32_t& length, bool& sacked, bool& rexmitted);// const;
 
-    virtual void checkSackBlockIter(uint32_t seqNum, uint32_t& length, bool& sacked, bool& rexmitted, std::map<uint32_t, Region>::iterator& iter);// const;
+    virtual void checkSackBlockLost(uint32_t seqNum, uint32_t& length, bool& sacked, bool& rexmitted, bool&lost);// const;
 
     virtual std::map<uint32_t, Region>::iterator searchSackBlock(uint32_t seqNum);// const;
 
