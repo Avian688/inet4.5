@@ -27,6 +27,12 @@ void TcpSackRexmitQueue::init(uint32_t seqNum)
 {
     begin = seqNum;
     end = seqNum;
+
+    m_sentSize = 0;
+    m_sackedOut = 0;
+    m_lostOut = 0;
+    m_retrans = 0;
+
 }
 
 std::string TcpSackRexmitQueue::str() const
