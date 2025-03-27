@@ -32,6 +32,11 @@ void TcpSackRexmitQueue::init(uint32_t seqNum)
 {
     begin = seqNum;
     end = seqNum;
+
+    m_sentSize = 0;
+    m_sackedOut = 0;
+    m_lostOut = 0;
+    m_retrans = 0;
 }
 
 std::string TcpSackRexmitQueue::str() const
@@ -156,6 +161,12 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
 
     bool found = false;
     Region region;
+    region. m_delivered = 0;
+    region. m_firstSentTime = 0;
+    region.m_lastSentTime = 0;
+    region.m_deliveredTime = 0;
+    region.m_bytes = 0;
+    region.m_isAppLimited = 0;
 
     EV_INFO << "rexmitQ: " << str() << " enqueueSentData [" << fromSeqNum << ".." << toSeqNum << ")\n";
 
@@ -172,6 +183,7 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
         region.sacked = false;
         region.rexmitted = false;
         region.lost = false;
+
         //region.numOfDiscontiguousSacks = 0;
         m_sentSize += toSeqNum - fromSeqNum;
         rexmitMap.insert({toSeqNum, region});
@@ -712,30 +724,34 @@ uint32_t TcpSackRexmitQueue::getAmountOfSackedBytes(uint32_t fromSeqNum)// const
 
 bool TcpSackRexmitQueue::checkIsLost(uint32_t seqNo, uint32_t highestSack)
 {
-    if (seqNo >= highestSack)
-    {
-        return false;
-    }
-//
-    // In theory, using a map and hints when inserting elements can improve
-    // performance
-    for (auto it = rexmitMap.begin(); it != rexmitMap.end(); ++it)
-    {
-        // Search for the right iterator before calling IsLost()
-        if (it->second.beginSeqNum <= seqNo && seqNo < it->second.endSeqNum)
+    if(findRegion(seqNo)){
+        if (seqNo >= highestSack)
         {
-            if (it->second.lost)
-            {
-                return true;
-            }
-
-            if (it->second.sacked)
-            {
-                return false;
-            }
+            return false;
         }
+    //
+        // In theory, using a map and hints when inserting elements can improve
+        // performance
+    //    for (auto it = rexmitMap.begin(); it != rexmitMap.end(); ++it)
+    //    {
+    //        // Search for the right iterator before calling IsLost()
+    //        if (seqNo < it->second.endSeqNum)
+    //        {
+    //            if (it->second.lost)
+    //            {
+    //                return true;
+    //            }
+    //
+    //            if (it->second.sacked)
+    //            {
+    //                return false;
+    //            }
+    //        }
+    //    }
+        return rexmitMap.at(seqNo).lost;
     }
     return false;
+    //return false;
 }
 
 bool TcpSackRexmitQueue::checkHeadIsLost()
