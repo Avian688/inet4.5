@@ -231,6 +231,7 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
 
         if (iter->second.beginSeqNum != fromSeqNum) {// is this used? Ignore this edge case for now! TODO
             // chunk item
+            std::cout << "\n WEIRD CASE HAPPENING" << endl;
             region = iter->second; //TODO CHECK THIS
             region.endSeqNum = fromSeqNum;
             //rexmitQueue.insert(i, region);
@@ -243,14 +244,17 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
             if(!iter->second.rexmitted){
                 m_retrans += iter->second.endSeqNum - iter->second.beginSeqNum;
             }
-            //std::cout << "\n MARKING AS RETRANSMITTED AT SIMTIME: " << simTime() << endl;
+            //std::cout << "\n MARKING AS RETRANSMITTED AT SIMTIME: " << simTime() << " SeqNo: " << iter->second.endSeqNum << endl;
             iter->second.rexmitted = true;
+            EV_INFO << "rexmitQ: " << " Retransmitting [" << fromSeqNum << ".." << toSeqNum << ")\n";
+            //iter->second.lost = false;
             fromSeqNum = iter->second.endSeqNum;
             found = true;
             iter++;
         }
 
         if (fromSeqNum != toSeqNum) { //rarely called? this is called if the block does not exist AND fromSeqNum is not the end of the current queue
+            std::cout << "\n WEIRD CASE HAPPENING 2" << endl;
             bool beforeEnd = (iter != rexmitMap.end());
             //ASSERT(i == rexmitQueue.end() || seqLess(i->beginSeqNum, toSeqNum));
             ASSERT(iter == rexmitMap.end() || seqLess(iter->second.beginSeqNum, toSeqNum));
@@ -264,7 +268,6 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
 //                region.lost = false;
 //            }
             //rexmitQueue.insert(i, region);
-            std::cout << "\n WEIRD THING" << endl;
             rexmitMap.insert({toSeqNum, region});
             //std::cout << "\n Inserting this block to scoreboard..." << endl;
             found = true;
@@ -331,12 +334,12 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum)
             return;
         }
 
-        while (iter != rexmitMap.end()){// && seqLE(iter->second.endSeqNum, toSeqNum) && seqGE(iter->second.beginSeqNum, fromSeqNum)){
+        while (iter != rexmitMap.end() && seqLE(iter->second.endSeqNum, toSeqNum)){// && seqLE(iter->second.endSeqNum, toSeqNum) && seqGE(iter->second.beginSeqNum, fromSeqNum)){
 
             found = true;
             Region& region = iter->second;
             uint32_t packetSize = region.endSeqNum - region.beginSeqNum;
-            if(seqGE(region.beginSeqNum, fromSeqNum) && seqLE(region.endSeqNum, toSeqNum)){
+            if(seqGE(region.beginSeqNum, fromSeqNum)){
                 if(!region.sacked){
                     if(region.lost == true){
                        m_lostOut -= packetSize;
@@ -350,9 +353,6 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum)
                     m_lostOut -= packetSize;
                     region.lost = false;
                 }
-            }
-            else if(seqGE(region.endSeqNum, toSeqNum)){
-                break;
             }
             ++iter;
         }
@@ -564,7 +564,7 @@ bool TcpSackRexmitQueue::getSackedBit(uint32_t seqNum) //const
     //RexmitQueue::const_iterator i = rexmitQueue.begin();
 
     if (end == seqNum){
-        std::cout << "\n THE FUCK IS HAPPENING HERE" << endl;
+        std::cout << "\n WHAT IS HAPPENING HERE" << endl;
         return false;
     }
     auto iter = rexmitMap.upper_bound(seqNum);
@@ -625,7 +625,7 @@ uint32_t TcpSackRexmitQueue::checkRexmitQueueForSackedOrRexmittedSegments(uint32
     //while (i != rexmitQueue.end() && seqLE(i->endSeqNum, fromSeqNum))
     //    i++;
     auto iter = rexmitMap.upper_bound(fromSeqNum);
-    while (iter != rexmitMap.end() && (iter->second.sacked || iter->second.rexmitted) && !(iter->second.lost)) {
+    while (iter != rexmitMap.end() && (iter->second.sacked || iter->second.rexmitted)) {
         bytes += (iter->second.endSeqNum - iter->second.beginSeqNum);
         iter++;
     }
@@ -776,7 +776,7 @@ void TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
     uint32_t sacked = 0;
     auto iter = rexmitMap.upper_bound(highestSackedSeqNum);
     std::map<uint32_t, Region>::reverse_iterator rit(iter);
-    for (rit; rit != rexmitMap.rend()--; rit++) {
+    for (rit; rit != rexmitMap.rend(); rit++) {
         Region& region = rit->second;
         if (region.sacked){
             sacked++;
@@ -817,6 +817,7 @@ void TcpSackRexmitQueue::markHeadAsLost()
         // A sacked head means that we should advance SND.UNA.. so it's an error.
         if (rexmitMap.begin()->second.sacked)
         {
+            std::cout << "\n SACKED HEAD ERROR AT " << simTime() << endl;
             rexmitMap.begin()->second.sacked = false;
             m_sackedOut -= rexmitMap.begin()->second.endSeqNum - rexmitMap.begin()->second.beginSeqNum;
         }
@@ -945,8 +946,8 @@ void TcpSackRexmitQueue::checkSackBlock(uint32_t fromSeqNum, uint32_t& length, b
 void TcpSackRexmitQueue::checkSackBlockLost(uint32_t fromSeqNum, uint32_t& length, bool& sacked, bool& rexmitted, bool&lost) //const
 {
     //ASSERT(seqLE(begin, fromSeqNum) && seqLess(fromSeqNum, end));
-    if(findRegion(fromSeqNum+1448)){
-        auto iter = rexmitMap.at(fromSeqNum+1448);
+    if(findRegion(fromSeqNum+length)){
+        auto iter = rexmitMap.at(fromSeqNum+length);
         length = (iter.endSeqNum - iter.beginSeqNum );
         sacked = iter.sacked;
         rexmitted = iter.rexmitted;
@@ -963,13 +964,6 @@ std::map<uint32_t, TcpSackRexmitQueue::Region>::iterator TcpSackRexmitQueue::sea
 
 uint32_t TcpSackRexmitQueue::getInFlight()
 {
-    if((m_sentSize - (m_sackedOut + m_lostOut) + m_retrans) > 6000000){
-        std::cout << "\n BYTES IN FLIGHT: " << (m_sentSize - (m_sackedOut + m_lostOut) + m_retrans) << endl;
-        std::cout << "\n SENT SIZE: " << m_sentSize  << endl;
-        std::cout << "\n SACKED OUT SIZE: " << m_sackedOut  << endl;
-        std::cout << "\n LOST SIZE: " << m_lostOut  << endl;
-        std::cout << "\n RETRANS SIZE: " << m_retrans  << endl;
-    }
     return m_sentSize - (m_sackedOut + m_lostOut) + m_retrans;
     //return m_sentSizel
 }

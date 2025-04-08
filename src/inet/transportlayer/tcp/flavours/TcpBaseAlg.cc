@@ -604,6 +604,7 @@ void TcpBaseAlg::restartRexmitTimer()
         cancelEvent(rexmitTimer);
 
     startRexmitTimer();
+    EV_INFO << "Restarting timer - RTO value is currently " << state->rexmit_timeout << "\n";
 }
 
 bool TcpBaseAlg::shouldMarkAck()

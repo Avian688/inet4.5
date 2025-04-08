@@ -88,13 +88,13 @@ class INET_API TcpSackRexmitQueue
     /**
      * Returns the sequence number of the first byte stored in the buffer.
      */
-    virtual uint32_t getBufferStartSeq() const { return begin; }
+    virtual uint32_t getBufferStartSeq() const { return rexmitMap.begin()->second.beginSeqNum; }
 
     /**
      * Returns the sequence number of the last byte stored in the buffer plus one.
      * (The first byte of the next send operation would get this sequence number.)
      */
-    virtual uint32_t getBufferEndSeq() const { return end; }
+    virtual uint32_t getBufferEndSeq() const { return (--rexmitMap.end())->second.endSeqNum; }
 
     /**
      * Tells the queue that bytes up to (but NOT including) seqNum have been

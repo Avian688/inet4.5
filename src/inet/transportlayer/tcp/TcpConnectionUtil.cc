@@ -890,6 +890,7 @@ bool TcpConnection::sendData(uint32_t congestionWindow)
     EV_INFO << "May send " << bytesToSend << " bytes (effectiveWindow " << effectiveWin << ", in buffer " << buffered << " bytes)\n";
 
     // send whole segments
+    std::cout << "\n DATA BEING SENT WRONG" << endl;
     while (bytesToSend >= effectiveMss) {
         uint32_t sentBytes = sendSegment(effectiveMss);
         ASSERT(bytesToSend >= sentBytes);
@@ -987,7 +988,7 @@ void TcpConnection::retransmitOneSegment(bool called_at_rto)
     }
     else {
         ASSERT(bytes != 0);
-
+        std::cout << "\n DATA BEING SENT WRONG" << endl;
         sendSegment(bytes);
         tcpAlgorithm->segmentRetransmitted(state->snd_una, state->snd_nxt);
 
@@ -1019,7 +1020,7 @@ void TcpConnection::retransmitData()
     // (ECT(0) or ECT(1)) in the IP header for retransmitted data packets
     if (state && state->ect)
         state->rexmit = true;
-
+    std::cout << "\n RETRANSMITTING DATA WRONG" << endl;
     // retransmit everything from snd_una
     state->snd_nxt = state->snd_una;
 
@@ -1543,6 +1544,7 @@ void TcpConnection::sendOneNewSegment(bool fullSegmentsOnly, uint32_t congestion
     // can generate such ACKs to trigger inappropriate transmission of data
     // segments.  See [SCWA99] for a discussion of attacks by misbehaving
     // receivers."
+    std::cout << "\n SENDING NEW SEGMENT WRONG" << endl;
     if (!state->sack_enabled || (state->sack_enabled && state->sackedBytes_old != state->sackedBytes)) {
         // check how many bytes we have
         uint32_t buffered = sendQueue->getBytesAvailable(state->snd_max);

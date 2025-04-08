@@ -250,7 +250,7 @@ bool TcpConnection::nextSeg(uint32_t& seqNum)
 
         if (!sacked) {
             //if (isLost(s2)) { // 1.a and 1.b are true, see above "for" statement
-            if(rexmitQueue->checkIsLost(s2, highestSackedSeqNum)) {
+            if(rexmitQueue->checkIsLost(s2+1448, highestSackedSeqNum)) {
                 seqNum = s2;
                 return true;
             }
@@ -347,8 +347,10 @@ void TcpConnection::sendDataDuringLossRecoveryPhase(uint32_t congestionWindow)
         // steps C.1 -- C.5)."
         uint32_t seqNum;
 
-        if (!nextSeg(seqNum)) // if nextSeg() returns false (=failure): terminate steps C.1 -- C.5
+        if (!nextSeg(seqNum)){ // if nextSeg() returns false (=failure): terminate steps C.1 -- C.5
+            std::cout << "COULDNT FIND SEGMENT - HEAD MAYBE SHOULD SEND \n " << endl;
             break;
+        }
 
         uint32_t sentBytes = sendSegmentDuringLossRecoveryPhase(seqNum);
         // RFC 3517 page 8: "(C.4) The estimate of the amount of data outstanding in the
@@ -420,7 +422,7 @@ uint32_t TcpConnection::sendSegmentDuringLossRecoveryPhase(uint32_t seqNum)
     if (old_highRxt != state->highRxt) {
         // Note: Restart of REXMIT timer on retransmission is not part of RFC 2581, however optional in RFC 3517 if sent during recovery.
         EV_INFO << "Retransmission sent during recovery, restarting REXMIT timer.\n";
-        //tcpAlgorithm->restartRexmitTimer();
+        tcpAlgorithm->restartRexmitTimer();
     }
     else // don't measure RTT for retransmitted packets
         tcpAlgorithm->dataSent(seqNum); // seqNum = old_snd_nxt
