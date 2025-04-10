@@ -663,7 +663,7 @@ void TcpSackRexmitQueue::resetRexmittedBit()
 
 uint32_t TcpSackRexmitQueue::getTotalAmountOfSackedBytes() //const
 {
-    uint32_t bytes = 0;
+    //uint32_t bytes = 0;
     //uint32_t sackedOut = 0;
 //    //uint32_t retrans = 0;
 //
@@ -759,11 +759,13 @@ bool TcpSackRexmitQueue::checkHeadIsLost()
     return rexmitMap.begin()->second.lost;
 }
 
-std::tuple<bool, bool> TcpSackRexmitQueue::getLostAndRetransmitted(uint32_t seqNo)
+bool TcpSackRexmitQueue::isRetransmitted(uint32_t seqNo)
 {
-    const auto entry = rexmitMap.upper_bound(seqNo)->second;
-
-    return {entry.lost, entry.rexmitted};
+    if(findRegion(seqNo)){
+       auto iter = rexmitMap.at(seqNo);
+       return iter.rexmitted;
+    }
+    return false;
 }
 
 uint32_t TcpSackRexmitQueue::getLost()
@@ -1035,7 +1037,49 @@ uint32_t TcpSackRexmitQueue::getTailSequence()
     return rexmitMap.begin()->second.endSeqNum;
 }
 
+void TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
+{
+    for (auto it = rexmitMap.begin(); it != rexmitMap.end(); ++it)
+    {
+        Region& region = it->second;
+        if (region.sacked)
+        {
+            continue;
+        }
 
+        // Packet lost but not retransmitted
+        if ((region.sacked && !region.rexmitted)) // Confirm this condition
+        {
+            continue;
+        }
+
+        else if (!rack->sentAfter(rack->getXmitTs(), region.m_lastSentTime, rack->getEndSeq(), region.endSeqNum))
+        {
+            break;
+        }
+
+        double remaining = region.m_lastSentTime.dbl() + rack->getRtt().dbl() + rack->getReoWnd() - simTime().dbl();
+        if (remaining <= 0)
+        {
+            if (!region.lost)
+            {
+                region.lost = true;
+                m_lostOut += region.endSeqNum - region.beginSeqNum;
+            }
+            // Marking the retransmitted packets that are lost again
+            else if (region.rexmitted)
+            {
+                region.rexmitted = false;
+                m_retrans -= region.endSeqNum - region.beginSeqNum;
+            }
+        }
+        else
+        {
+            timeout = std::max(remaining, timeout);
+        }
+    }
+    return;
+}
 
 } // namespace tcp
 

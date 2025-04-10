@@ -1258,6 +1258,7 @@ OBJS = \
     $O/inet/transportlayer/tcp/TcpConnectionRcvSegment.o \
     $O/inet/transportlayer/tcp/TcpConnectionSackUtil.o \
     $O/inet/transportlayer/tcp/TcpConnectionUtil.o \
+    $O/inet/transportlayer/tcp/TcpRack.o \
     $O/inet/transportlayer/tcp/TcpReceiveQueue.o \
     $O/inet/transportlayer/tcp/TcpSackRexmitQueue.o \
     $O/inet/transportlayer/tcp/TcpSendQueue.o \

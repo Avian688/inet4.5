@@ -9,6 +9,7 @@
 
 #include "inet/transportlayer/tcp/TcpConnection.h"
 #include "inet/transportlayer/tcp_common/TcpHeader.h"
+#include "TcpRack.h"
 #include <tuple>
 namespace inet {
 namespace tcp {
@@ -171,7 +172,7 @@ class INET_API TcpSackRexmitQueue
 
     virtual bool checkHeadIsLost();
 
-    virtual std::tuple<bool, bool> getLostAndRetransmitted(uint32_t seqNo);
+    virtual bool isRetransmitted(uint32_t seqNo);
 
     virtual void updateLost(uint32_t highestSackedSeqNum);
 
@@ -206,6 +207,8 @@ class INET_API TcpSackRexmitQueue
     virtual bool findRegion(uint32_t seqNum);
 
     virtual uint32_t getTailSequence();
+
+    virtual void checkRackLoss(TcpRack* rack, double &timeout);
 
   protected:
     /*
