@@ -145,6 +145,19 @@ void TcpSackRexmitQueue::discardUpTo(uint32_t seqNum)
     //ASSERT(checkQueue());
 }
 
+std::list<uint32_t> TcpSackRexmitQueue::getDiscardList(uint32_t seqNum) //TODO MAKE MORE EFFICIENT
+{
+    std::list<uint32_t> skbDeliveredList;
+    if (!rexmitMap.empty()) {
+        auto i = rexmitMap.begin();
+        while ((i != rexmitMap.end()) && seqLE(i->second.endSeqNum, seqNum)){
+            skbDeliveredList.push_back(i->second.endSeqNum);
+            i++;
+        }
+    }
+    return skbDeliveredList;
+}
+
 void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
 {
     //std::cout << "\n BEGIN: " << begin << endl;

@@ -103,6 +103,8 @@ class INET_API TcpSackRexmitQueue
      */
     virtual void discardUpTo(uint32_t seqNum);
 
+    virtual std::list<uint32_t> getDiscardList(uint32_t seqNum);
+
     /**
      * Inserts sent data to the rexmit queue.
      */
