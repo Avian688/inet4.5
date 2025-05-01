@@ -212,6 +212,8 @@ class INET_API TcpSackRexmitQueue
 
     virtual void checkRackLoss(TcpRack* rack, double &timeout);
 
+    virtual bool isRetransmittedDataAcked(const uint32_t seqNum);
+
   protected:
     /*
      * Returns if TcpSackRexmitQueue is valid or not.

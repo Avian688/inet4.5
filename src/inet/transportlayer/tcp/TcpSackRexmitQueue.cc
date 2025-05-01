@@ -1094,6 +1094,12 @@ void TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
     return;
 }
 
+bool TcpSackRexmitQueue::isRetransmittedDataAcked(uint32_t seqNum)
+{
+    TcpSackRexmitQueue::Region& region = rexmitMap.at(seqNum);
+    return !region.sacked && region.rexmitted;
+}
+
 } // namespace tcp
 
 } // namespace inet
