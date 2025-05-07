@@ -786,8 +786,9 @@ uint32_t TcpSackRexmitQueue::getLost()
     return m_lostOut;
 }
 
-void TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
+bool TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
 {
+    bool itemLost = false;
     uint32_t sacked = 0;
     auto iter = rexmitMap.upper_bound(highestSackedSeqNum);
     std::map<uint32_t, Region>::reverse_iterator rit(iter);
@@ -802,6 +803,7 @@ void TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
             if(!region.sacked  && !rit->second.lost){
                 region.lost = true;
                 m_lostOut += region.endSeqNum - region.beginSeqNum;
+                itemLost = true;
 //                if(rit->second.rexmitted == true){
 //                    rit->second.rexmitted = false;
 //                    m_retrans -= rit->second.endSeqNum - rit->second.beginSeqNum;
@@ -816,11 +818,14 @@ void TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
         Region& region = item->second;
         if(region.lost == false){
             region.lost = true;
+            itemLost = true;
             m_lostOut += region.endSeqNum - region.beginSeqNum;
+
         }
     }
 
     consistencyCheck();
+    return itemLost;
 }
 
 void TcpSackRexmitQueue::markHeadAsLost()
@@ -1050,8 +1055,9 @@ uint32_t TcpSackRexmitQueue::getTailSequence()
     return rexmitMap.begin()->second.endSeqNum;
 }
 
-void TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
+bool TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
 {
+    bool markedLost = false;
     for (auto it = rexmitMap.begin(); it != rexmitMap.end(); ++it)
     {
         Region& region = it->second;
@@ -1078,6 +1084,7 @@ void TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
             {
                 region.lost = true;
                 m_lostOut += region.endSeqNum - region.beginSeqNum;
+                markedLost = true;
             }
             // Marking the retransmitted packets that are lost again
             else if (region.rexmitted)
@@ -1091,7 +1098,7 @@ void TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
             timeout = std::max(remaining, timeout);
         }
     }
-    return;
+    return markedLost;
 }
 
 bool TcpSackRexmitQueue::isRetransmittedDataAcked(uint32_t seqNum)

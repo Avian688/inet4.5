@@ -176,7 +176,7 @@ class INET_API TcpSackRexmitQueue
 
     virtual bool isRetransmitted(uint32_t seqNo);
 
-    virtual void updateLost(uint32_t highestSackedSeqNum);
+    virtual bool updateLost(uint32_t highestSackedSeqNum);
 
     virtual void consistencyCheck() const;
     /**
@@ -210,7 +210,7 @@ class INET_API TcpSackRexmitQueue
 
     virtual uint32_t getTailSequence();
 
-    virtual void checkRackLoss(TcpRack* rack, double &timeout);
+    virtual bool checkRackLoss(TcpRack* rack, double &timeout);
 
     virtual bool isRetransmittedDataAcked(const uint32_t seqNum);
 
