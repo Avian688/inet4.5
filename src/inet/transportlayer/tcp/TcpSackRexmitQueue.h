@@ -214,6 +214,8 @@ class INET_API TcpSackRexmitQueue
 
     virtual bool isRetransmittedDataAcked(const uint32_t seqNum);
 
+    virtual uint32_t getTotalRetransmitted() {return m_retrans;};
+
   protected:
     /*
      * Returns if TcpSackRexmitQueue is valid or not.
