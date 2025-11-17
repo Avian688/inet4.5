@@ -263,7 +263,7 @@ void TcpConnection::sendToIP(Packet *tcpSegment, const Ptr<TcpHeader>& tcpHeader
 
     // TODO reuse next function for sending
 
-    const IL3AddressType *addressType = remoteAddr.getAddressType();
+    const IL3AddressType *addressType =  remoteAddr.getAddressType();
     tcpSegment->addTagIfAbsent<DispatchProtocolReq>()->setProtocol(addressType->getNetworkProtocol());
 
     if (ttl != -1 && tcpSegment->findTag<HopLimitReq>() == nullptr)
@@ -430,6 +430,7 @@ void TcpConnection::initConnection(TcpOpenCommand *openCmd)
     // create state block
     state = tcpAlgorithm->getStateVariables();
     configureStateVariables();
+
     tcpAlgorithm->initialize();
 }
 

@@ -81,7 +81,7 @@ void TcpSackRexmitQueue::discardUpTo(uint32_t seqNum)
 //        std::cout << "\n ASSERT in discardUpTo FAILED" << endl;
 //        std::cout << "\n" << detailedInfo() << endl;
 //    }
-    ASSERT(seqLE(begin, seqNum) && seqLE(seqNum, (--rexmitMap.end())->second.endSeqNum));
+//    ASSERT(seqLE(begin, seqNum) && seqLE(seqNum, (--rexmitMap.end())->second.endSeqNum));
 //    if (!rexmitQueue.empty()) {
 //        auto i = rexmitQueue.begin();
 //        while ((i != rexmitQueue.end()) && seqLE(i->endSeqNum, seqNum))

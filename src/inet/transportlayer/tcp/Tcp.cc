@@ -222,6 +222,14 @@ void Tcp::removeConnection(TcpConnection *conn)
 TcpConnection *Tcp::findConnForSegment(const Ptr<const TcpHeader>& tcpHeader, L3Address srcAddr, L3Address destAddr)
 {
     SockPair key;
+
+    std::cout << "Finding key values:"
+              << " localAddr=" << destAddr
+              << ", remoteAddr=" << srcAddr
+              << ", localPort=" << tcpHeader->getDestPort()
+              << ", remotePort=" << tcpHeader->getSrcPort()
+              << std::endl;
+
     key.localAddr = destAddr;
     key.remoteAddr = srcAddr;
     key.localPort = tcpHeader->getDestPort();
@@ -232,7 +240,6 @@ TcpConnection *Tcp::findConnForSegment(const Ptr<const TcpHeader>& tcpHeader, L3
     auto i = tcpConnMap.find(key);
     if (i != tcpConnMap.end())
         return i->second;
-
     // try with localAddr missing (only localPort specified in passive/active open)
     key.localAddr = L3Address();
     i = tcpConnMap.find(key);
@@ -255,6 +262,23 @@ TcpConnection *Tcp::findConnForSegment(const Ptr<const TcpHeader>& tcpHeader, L3
 
     if (i != tcpConnMap.end())
         return i->second;
+
+
+    std::cout << "---- TcpConnMap contents ----" << std::endl;
+
+    for (const auto& entry : tcpConnMap) {
+        const SockPair& key = entry.first;
+        TcpConnection* conn = entry.second;
+
+        std::cout << "Key: [localAddr=" << key.localAddr
+                  << ", remoteAddr=" << key.remoteAddr
+                  << ", localPort=" << key.localPort
+                  << ", remotePort=" << key.remotePort << "]"
+                  << " -> Connection: " << (conn ? conn->getClassAndFullName() : "nullptr")
+                  << std::endl;
+    }
+
+    std::cout << "---- End of TcpConnMap ----" << std::endl;
 
     // given up
     return nullptr;

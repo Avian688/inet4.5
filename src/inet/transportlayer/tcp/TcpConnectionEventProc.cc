@@ -50,6 +50,12 @@ void TcpConnection::process_OPEN_ACTIVE(TcpEventCode& event, TcpCommand *tcpComm
 
             EV_DETAIL << "OPEN: " << localAddr << ":" << localPort << " --> " << remoteAddr << ":" << remotePort << "\n";
 
+            std::cout << "Adding socket pair: this=" << this
+                      << ", localAddr=" << localAddr
+                      << ", remoteAddr=" << remoteAddr
+                      << ", localPort=" << localPort
+                      << ", remotePort=" << remotePort << std::endl;
+
             tcpMain->addSockPair(this, localAddr, remoteAddr, localPort, remotePort);
 
             // send initial SYN
@@ -114,6 +120,8 @@ void TcpConnection::process_SEND(TcpEventCode& event, TcpCommand *tcpCommand, cM
     // FIXME how to support PUSH? One option is to treat each SEND as a unit of data,
     // and set PSH at SEND boundaries
     Packet *packet = check_and_cast<Packet *>(msg);
+    std::cout << "\n PROCESSING SEND AT SIMTIME: " << simTime() << endl;
+    std::cout << "\n FSM STATE: " << fsm.getState() << endl;
     switch (fsm.getState()) {
         case TCP_S_INIT:
             throw cRuntimeError(tcpMain, "Error processing command SEND: connection not open");
@@ -132,6 +140,7 @@ void TcpConnection::process_SEND(TcpEventCode& event, TcpCommand *tcpCommand, cM
         case TCP_S_SYN_RCVD:
         case TCP_S_SYN_SENT:
             EV_DETAIL << "Queueing up data for sending later.\n";
+            std::cout << "\n PACKET INFORMATION: " << packet->getDataLength() << endl;
             sendQueue->enqueueAppData(packet); // queue up for later
             EV_DETAIL << sendQueue->getBytesAvailable(state->snd_una) << " bytes in queue\n";
             break;

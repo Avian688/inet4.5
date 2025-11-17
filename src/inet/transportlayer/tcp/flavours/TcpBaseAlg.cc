@@ -88,17 +88,21 @@ TcpBaseAlg::~TcpBaseAlg()
 
 void TcpBaseAlg::initialize()
 {
+
     TcpAlgorithm::initialize();
 
     rexmitTimer = new cMessage("REXMIT");
     persistTimer = new cMessage("PERSIST");
     delayedAckTimer = new cMessage("DELAYEDACK");
     keepAliveTimer = new cMessage("KEEPALIVE");
+    std::cout << "\n OWNER BEFORE SET CONTEXT: " << rexmitTimer->getOwner()->getClassAndFullPath() << endl;
 
     rexmitTimer->setContextPointer(conn);
     persistTimer->setContextPointer(conn);
     delayedAckTimer->setContextPointer(conn);
     keepAliveTimer->setContextPointer(conn);
+
+    std::cout << "\n OWNER AFTER SET CONTEXT: " << rexmitTimer->getOwner()->getClassAndFullPath() << endl;
 }
 
 void TcpBaseAlg::established(bool active)
@@ -309,9 +313,11 @@ void TcpBaseAlg::startRexmitTimer()
 {
     // start counting retransmissions for this seq number.
     // Note: state->rexmit_timeout is set from rttMeasurementComplete().
+    std::cout << "\n STARTING REXMIT TIMER: " << conn->getClassAndFullPath() << endl;
     state->rexmit_count = 0;
-
     // schedule timer
+
+    std::cout << "\n OWNER: " << rexmitTimer->getOwner()->getClassAndFullPath() << endl;
     conn->scheduleAfter(state->rexmit_timeout, rexmitTimer);
 }
 

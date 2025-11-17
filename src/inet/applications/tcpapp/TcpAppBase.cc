@@ -98,6 +98,7 @@ void TcpAppBase::sendPacket(Packet *msg)
 {
     int numBytes = msg->getByteLength();
     emit(packetSentSignal, msg);
+    std::cout << "\n APP SENDING PACKET: " << msg->getByteLength() << endl;
     socket.send(msg);
 
     packetsSent++;

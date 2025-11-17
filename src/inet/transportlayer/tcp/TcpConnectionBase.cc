@@ -187,25 +187,21 @@ bool TcpConnection::processTimer(cMessage *msg)
 bool TcpConnection::processTCPSegment(Packet *tcpSegment, const Ptr<const TcpHeader>& tcpHeader, L3Address segSrcAddr, L3Address segDestAddr)
 {
     Enter_Method("processTCPSegment");
-
     take(tcpSegment);
     printConnBrief();
     if (!localAddr.isUnspecified()) {
         ASSERT(localAddr == segDestAddr);
         ASSERT(localPort == tcpHeader->getDestPort());
     }
-
     if (!remoteAddr.isUnspecified()) {
         ASSERT(remoteAddr == segSrcAddr);
         ASSERT(remotePort == tcpHeader->getSrcPort());
     }
-
     if (tryFastRoute(tcpHeader))
         return true;
 
     // first do actions
     TcpEventCode event = process_RCV_SEGMENT(tcpSegment, tcpHeader, segSrcAddr, segDestAddr);
-
     // then state transitions
     return performStateTransition(event);
 }
@@ -214,6 +210,7 @@ bool TcpConnection::processAppCommand(cMessage *msg)
 {
     Enter_Method("processAppCommand");
 
+
     take(msg);
     printConnBrief();
 
@@ -221,7 +218,7 @@ bool TcpConnection::processAppCommand(cMessage *msg)
     TcpCommand *tcpCommand = check_and_cast_nullable<TcpCommand *>(msg->removeControlInfo());
     TcpEventCode event = preanalyseAppCommandEvent(msg->getKind());
     EV_INFO << "App command: " << eventName(event) << "\n";
-
+    std::cout << "Processing App command: " << eventName(event) << simTime() << " Connection Type: " << this->getClassAndFullName() << endl;
     switch (event) {
         case TCP_E_OPEN_ACTIVE:
             process_OPEN_ACTIVE(event, tcpCommand, msg);

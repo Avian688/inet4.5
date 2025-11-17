@@ -217,6 +217,10 @@ cGate *MessageDispatcher::handleMessage(Message *message, cGate *inGate)
     if (socketInd != nullptr) {
         int socketId = socketInd->getSocketId();
         auto it = socketIdToGateIndex.find(socketId);
+        std::cout << "Socket ID -> Gate Index pairs:\n";
+        for (const auto& [socketId, gateIndex] : socketIdToGateIndex) {
+            std::cout << "Socket " << socketId << " -> Gate " << gateIndex << '\n';
+        }
         if (it != socketIdToGateIndex.end()) {
             auto outGate = gate("out", it->second);
             EV_INFO << "Dispatching message to socket" << EV_FIELD(socketId) << EV_FIELD(inGate) << EV_FIELD(outGate) << EV_FIELD(message) << EV_ENDL;

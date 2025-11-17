@@ -106,6 +106,17 @@ void TcpSessionApp::sendData()
     EV_INFO << "sending data with " << numBytes << " bytes\n";
     sendPacket(createDataPacket(numBytes));
 
+    int ci = -1;
+
+    while (++ci < (int)commands.size()) {
+        const Command& cmd = commands[ci];
+        std::cout << "Command Index: " << ci
+                  << " | tSend: " << cmd.tSend
+                  << " | numBytes: " << cmd.numBytes << std::endl;
+    }
+
+    std::cout << "\n commandIndex: " << commandIndex << endl;
+
     if (++commandIndex < (int)commands.size()) {
         simtime_t tSend = commands[commandIndex].tSend;
         scheduleAt(std::max(tSend, simTime()), timeoutMsg);
@@ -148,7 +159,6 @@ Packet *TcpSessionApp::createDataPacket(long sendBytes)
 void TcpSessionApp::socketEstablished(TcpSocket *socket)
 {
     TcpAppBase::socketEstablished(socket);
-
     ASSERT(commandIndex == 0);
     timeoutMsg->setKind(MSGKIND_SEND);
     simtime_t tSend = commands[commandIndex].tSend;

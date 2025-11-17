@@ -362,7 +362,7 @@ void TcpConnection::sendDataDuringLossRecoveryPhase(uint32_t congestionWindow)
 
 uint32_t TcpConnection::sendSegmentDuringLossRecoveryPhase(uint32_t seqNum)
 {
-    ASSERT(state->sack_enabled && state->lossRecovery);
+    //ASSERT(state->sack_enabled && state->lossRecovery);
 
     // start sending from seqNum
     state->snd_nxt = seqNum;

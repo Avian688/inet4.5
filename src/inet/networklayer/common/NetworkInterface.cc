@@ -270,7 +270,6 @@ void NetworkInterface::pushPacketEnd(Packet *packet, cGate *gate)
             pushOrSendPacketEnd(packet, upperLayerIn, upperLayerInConsumer, packet->getTransmissionId());
     }
     else if (gate == upperLayerOut) {
-        packet->addTagIfAbsent<InterfaceInd>()->setInterfaceId(interfaceId);
         pushOrSendPacketEnd(packet, upperLayerOut, upperLayerOutConsumer, packet->getTransmissionId());
     }
     else
