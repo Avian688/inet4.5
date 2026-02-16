@@ -223,13 +223,6 @@ TcpConnection *Tcp::findConnForSegment(const Ptr<const TcpHeader>& tcpHeader, L3
 {
     SockPair key;
 
-    std::cout << "Finding key values:"
-              << " localAddr=" << destAddr
-              << ", remoteAddr=" << srcAddr
-              << ", localPort=" << tcpHeader->getDestPort()
-              << ", remotePort=" << tcpHeader->getSrcPort()
-              << std::endl;
-
     key.localAddr = destAddr;
     key.remoteAddr = srcAddr;
     key.localPort = tcpHeader->getDestPort();

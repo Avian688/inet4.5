@@ -831,12 +831,6 @@ TcpEventCode TcpConnection::processSynInListen(Packet *tcpSegment, const Ptr<con
         state->endPointIsWillingECN = true;
         EV << "ECN-setup SYN packet received\n";
     }
-    std::cout << "\nSending Syn Ack = "
-              << "localPort: " << localPort
-              << ", localAddr: " << localAddr
-              << ", remotePort: " << remotePort
-              << ", remoteAddr: " << remoteAddr
-              << std::endl;
     sendSynAck();
     startSynRexmitTimer();
 
