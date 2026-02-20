@@ -218,7 +218,6 @@ bool TcpConnection::processAppCommand(cMessage *msg)
     TcpCommand *tcpCommand = check_and_cast_nullable<TcpCommand *>(msg->removeControlInfo());
     TcpEventCode event = preanalyseAppCommandEvent(msg->getKind());
     EV_INFO << "App command: " << eventName(event) << "\n";
-    std::cout << "Processing App command: " << eventName(event) << simTime() << " Connection Type: " << this->getClassAndFullName() << endl;
     switch (event) {
         case TCP_E_OPEN_ACTIVE:
             process_OPEN_ACTIVE(event, tcpCommand, msg);

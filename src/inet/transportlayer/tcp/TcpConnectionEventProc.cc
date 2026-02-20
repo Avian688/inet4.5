@@ -50,12 +50,6 @@ void TcpConnection::process_OPEN_ACTIVE(TcpEventCode& event, TcpCommand *tcpComm
 
             EV_DETAIL << "OPEN: " << localAddr << ":" << localPort << " --> " << remoteAddr << ":" << remotePort << "\n";
 
-            std::cout << "Adding socket pair: this=" << this
-                      << ", localAddr=" << localAddr
-                      << ", remoteAddr=" << remoteAddr
-                      << ", localPort=" << localPort
-                      << ", remotePort=" << remotePort << std::endl;
-
             tcpMain->addSockPair(this, localAddr, remoteAddr, localPort, remotePort);
 
             // send initial SYN

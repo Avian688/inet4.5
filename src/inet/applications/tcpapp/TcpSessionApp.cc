@@ -110,12 +110,7 @@ void TcpSessionApp::sendData()
 
     while (++ci < (int)commands.size()) {
         const Command& cmd = commands[ci];
-        std::cout << "Command Index: " << ci
-                  << " | tSend: " << cmd.tSend
-                  << " | numBytes: " << cmd.numBytes << std::endl;
     }
-
-    std::cout << "\n commandIndex: " << commandIndex << endl;
 
     if (++commandIndex < (int)commands.size()) {
         simtime_t tSend = commands[commandIndex].tSend;
