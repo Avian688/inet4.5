@@ -138,7 +138,7 @@ void TcpSackRexmitQueue::discardUpTo(uint32_t seqNum)
     }
     begin = seqNum;
 
-    if(rexmitMap.begin()->second.sacked){
+    if (!rexmitMap.empty() && rexmitMap.begin()->second.sacked) {
         std::cout << "\n SACK ERROR HERE" << endl;
     }
     // TESTING queue:
