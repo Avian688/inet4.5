@@ -20,6 +20,7 @@ TcpSackRexmitQueue::TcpSackRexmitQueue()
     m_sackedOut = 0;
     m_lostOut = 0;
     m_retrans = 0;
+    clearRecentLossSample();
 }
 
 TcpSackRexmitQueue::~TcpSackRexmitQueue()
@@ -37,6 +38,7 @@ void TcpSackRexmitQueue::init(uint32_t seqNum)
     m_sackedOut = 0;
     m_lostOut = 0;
     m_retrans = 0;
+    clearRecentLossSample();
 }
 
 std::string TcpSackRexmitQueue::str() const
@@ -179,6 +181,7 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
     region.m_lastSentTime = 0;
     region.m_deliveredTime = 0;
     region.m_bytes = 0;
+    region.m_txInFlight = 0;
     region.m_isAppLimited = 0;
 
     EV_INFO << "rexmitQ: " << str() << " enqueueSentData [" << fromSeqNum << ".." << toSeqNum << ")\n";
@@ -803,6 +806,7 @@ bool TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
             if(!region.sacked  && !rit->second.lost){
                 region.lost = true;
                 m_lostOut += region.endSeqNum - region.beginSeqNum;
+                noteLostRegion(region);
                 itemLost = true;
 //                if(rit->second.rexmitted == true){
 //                    rit->second.rexmitted = false;
@@ -820,6 +824,7 @@ bool TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
             region.lost = true;
             itemLost = true;
             m_lostOut += region.endSeqNum - region.beginSeqNum;
+            noteLostRegion(region);
 
         }
     }
@@ -988,12 +993,48 @@ uint32_t TcpSackRexmitQueue::getInFlight()
     //return m_sentSizel
 }
 
-void TcpSackRexmitQueue::skbSent(uint32_t seqNum, simtime_t m_firstSentTime, simtime_t m_lastSentTime, simtime_t m_deliveredTime, bool m_isAppLimited, uint32_t m_delivered, uint32_t m_appLimited)
+void TcpSackRexmitQueue::clearRecentLossSample()
+{
+    m_recentLossSampleValid = false;
+    m_recentLossBytes = 0;
+    m_recentLossTxInFlight = 0;
+    m_recentLossIsAppLimited = false;
+}
+
+bool TcpSackRexmitQueue::getRecentLossSample(uint32_t& txInFlight, uint32_t& lostBytes, bool& isAppLimited) const
+{
+    if (!m_recentLossSampleValid)
+        return false;
+
+    txInFlight = m_recentLossTxInFlight;
+    lostBytes = m_recentLossBytes;
+    isAppLimited = m_recentLossIsAppLimited;
+    return true;
+}
+
+void TcpSackRexmitQueue::noteLostRegion(const Region& region)
+{
+    const uint32_t lostBytes = region.endSeqNum - region.beginSeqNum;
+    if (!m_recentLossSampleValid) {
+        m_recentLossSampleValid = true;
+        m_recentLossBytes = lostBytes;
+        m_recentLossTxInFlight = region.m_txInFlight;
+        m_recentLossIsAppLimited = region.m_isAppLimited;
+    }
+    else {
+        m_recentLossBytes += lostBytes;
+        m_recentLossTxInFlight = std::max(m_recentLossTxInFlight, region.m_txInFlight);
+        m_recentLossIsAppLimited = m_recentLossIsAppLimited && region.m_isAppLimited;
+    }
+}
+
+void TcpSackRexmitQueue::skbSent(uint32_t seqNum, simtime_t m_firstSentTime, simtime_t m_lastSentTime, simtime_t m_deliveredTime, uint32_t m_txInFlight, bool m_isAppLimited, uint32_t m_delivered, uint32_t m_appLimited)
 {
     inet::tcp::TcpSackRexmitQueue::Region& region = rexmitMap.at(seqNum);
     region.m_firstSentTime = m_firstSentTime;
     region.m_lastSentTime = m_lastSentTime;
     region.m_deliveredTime = m_deliveredTime;
+    region.m_txInFlight = m_txInFlight;
     region.m_isAppLimited = (m_appLimited != 0);
     region.m_delivered = m_delivered;
     //return m_sentSizel
@@ -1084,6 +1125,7 @@ bool TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
             {
                 region.lost = true;
                 m_lostOut += region.endSeqNum - region.beginSeqNum;
+                noteLostRegion(region);
                 markedLost = true;
             }
             // Marking the retransmitted packets that are lost again

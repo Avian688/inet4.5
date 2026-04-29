@@ -35,6 +35,7 @@ class INET_API TcpSackRexmitQueue
         simtime_t m_lastSentTime;
         simtime_t m_deliveredTime;
         uint32_t m_bytes;
+        uint32_t m_txInFlight;
         bool m_isAppLimited;
     };
 
@@ -49,6 +50,10 @@ class INET_API TcpSackRexmitQueue
     uint32_t m_sackedOut;
     uint32_t m_lostOut;
     uint32_t m_retrans;
+    bool m_recentLossSampleValid;
+    uint32_t m_recentLossBytes;
+    uint32_t m_recentLossTxInFlight;
+    bool m_recentLossIsAppLimited;
 
   public:
     /**
@@ -202,7 +207,11 @@ class INET_API TcpSackRexmitQueue
 
     virtual void setAllLost();
 
-    virtual void skbSent(uint32_t seqNum, simtime_t m_firstSentTime, simtime_t m_lastSentTime, simtime_t m_deliveredTime, bool m_IsAppLimited, uint32_t m_delivered, uint32_t m_appLimited);
+    virtual void clearRecentLossSample();
+
+    virtual bool getRecentLossSample(uint32_t& txInFlight, uint32_t& lostBytes, bool& isAppLimited) const;
+
+    virtual void skbSent(uint32_t seqNum, simtime_t m_firstSentTime, simtime_t m_lastSentTime, simtime_t m_deliveredTime, uint32_t m_txInFlight, bool m_IsAppLimited, uint32_t m_delivered, uint32_t m_appLimited);
 
     virtual Region& getRegion(uint32_t seqNum);
 
@@ -217,6 +226,8 @@ class INET_API TcpSackRexmitQueue
     virtual uint32_t getTotalRetransmitted() {return m_retrans;};
 
   protected:
+    void noteLostRegion(const Region& region);
+
     /*
      * Returns if TcpSackRexmitQueue is valid or not.
      */
