@@ -173,7 +173,6 @@ void TcpConnection::setPipe()
     // steps are taken for each octet 'S1' in the sequence space between
     // HighACK and HighData that has not been SACKed:"
 
-    //rexmitQueue->updateLost(rexmitQueue->getHighestSackedSeqNum());
     uint32_t highSacked = rexmitQueue->getHighestSackedSeqNum();
     for (uint32_t s1 = state->snd_una; seqLess(s1, state->snd_max); s1 += length) {
         rexmitQueue->checkSackBlock(s1, length, sacked, rexmitted);
@@ -186,8 +185,7 @@ void TcpConnection::setPipe()
             //     packets that have not been SACKed and have not been determined
             //     to have been lost (i.e., those segments that are still assumed
             //     to be in the network)."
-            //if (isLost(s1) == false){
-            if (rexmitQueue->checkIsLost(s1, highSacked) == false){
+            if (rexmitQueue->isUpdatedSackEnabled() ? !rexmitQueue->checkIsLost(s1, highSacked) : !isLost(s1)) {
                 state->pipe += length;
             }
             // RFC 3517, pages 3 and 4: "(b) If S1 <= HighRxt:
@@ -216,7 +214,7 @@ bool TcpConnection::nextSeg(uint32_t& seqNum)
     // been marked in the scoreboard).  NextSeg () MUST return the
     // sequence number range of the next segment that is to be
     // transmitted, per the following rules:"
-    //state->highRxt = rexmitQueue->getHighestRexmittedSeqNum(); not needed?
+    state->highRxt = rexmitQueue->getHighestRexmittedSeqNum();
 
     uint32_t highestSackedSeqNum = rexmitQueue->getHighestSackedSeqNum();
     uint32_t shift = state->snd_mss;
@@ -249,8 +247,7 @@ bool TcpConnection::nextSeg(uint32_t& seqNum)
         rexmitQueue->checkSackBlock(s2, shift, sacked, rexmitted);
 
         if (!sacked) {
-            //if (isLost(s2)) { // 1.a and 1.b are true, see above "for" statement
-            if(rexmitQueue->checkIsLost(s2+1448, highestSackedSeqNum)) {
+            if (rexmitQueue->isUpdatedSackEnabled() ? rexmitQueue->checkIsLost(s2 + shift, highestSackedSeqNum) : isLost(s2)) {
                 seqNum = s2;
                 return true;
             }
@@ -650,4 +647,3 @@ TcpHeader TcpConnection::addSacks(const Ptr<TcpHeader>& tcpHeader)
 
 } // namespace tcp
 } // namespace inet
-

@@ -54,6 +54,7 @@ class INET_API TcpSackRexmitQueue
     uint32_t m_recentLossBytes;
     uint32_t m_recentLossTxInFlight;
     bool m_recentLossIsAppLimited;
+    bool m_updatedSackEnabled = true;
 
   public:
     /**
@@ -70,6 +71,9 @@ class INET_API TcpSackRexmitQueue
      * Set the connection that owns this queue.
      */
     virtual void setConnection(TcpConnection *_conn) { conn = _conn; }
+
+    virtual void setUpdatedSackEnabled(bool enabled) { m_updatedSackEnabled = enabled; }
+    virtual bool isUpdatedSackEnabled() const { return m_updatedSackEnabled; }
 
     /**
      * Initialize the object. The startSeq parameter tells what sequence number the first
@@ -94,13 +98,13 @@ class INET_API TcpSackRexmitQueue
     /**
      * Returns the sequence number of the first byte stored in the buffer.
      */
-    virtual uint32_t getBufferStartSeq() const { return rexmitMap.begin()->second.beginSeqNum; }
+    virtual uint32_t getBufferStartSeq() const { return m_updatedSackEnabled && !rexmitMap.empty() ? rexmitMap.begin()->second.beginSeqNum : begin; }
 
     /**
      * Returns the sequence number of the last byte stored in the buffer plus one.
      * (The first byte of the next send operation would get this sequence number.)
      */
-    virtual uint32_t getBufferEndSeq() const { return (--rexmitMap.end())->second.endSeqNum; }
+    virtual uint32_t getBufferEndSeq() const { return m_updatedSackEnabled && !rexmitMap.empty() ? rexmitMap.rbegin()->second.endSeqNum : end; }
 
     /**
      * Tells the queue that bytes up to (but NOT including) seqNum have been
@@ -134,7 +138,7 @@ class INET_API TcpSackRexmitQueue
     /**
      * Returns the number of blocks currently buffered in queue.
      */
-    virtual uint32_t getQueueLength() const { return rexmitQueue.size(); }
+    virtual uint32_t getQueueLength() const { return m_updatedSackEnabled ? rexmitMap.size() : rexmitQueue.size(); }
 
     /**
      * Returns the highest sequence number sacked by data receiver.

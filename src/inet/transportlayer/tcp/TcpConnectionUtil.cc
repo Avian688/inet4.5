@@ -460,6 +460,7 @@ void TcpConnection::configureStateVariables()
     state->snd_mss = tcpMain->par("mss"); // Maximum Segment Size (RFC 793)
     state->ts_support = tcpMain->par("timestampSupport"); // if set, this means that current host supports TS (RFC 1323)
     state->sack_support = tcpMain->par("sackSupport"); // if set, this means that current host supports SACK (RFC 2018, 2883, 3517)
+    rexmitQueue->setUpdatedSackEnabled(tcpMain->par("updatedSackEnabled"));
 
     if (state->sack_support) {
         std::string algorithmName1 = "TcpReno";
@@ -891,7 +892,6 @@ bool TcpConnection::sendData(uint32_t congestionWindow)
     EV_INFO << "May send " << bytesToSend << " bytes (effectiveWindow " << effectiveWin << ", in buffer " << buffered << " bytes)\n";
 
     // send whole segments
-    std::cout << "\n DATA BEING SENT WRONG" << endl;
     while (bytesToSend >= effectiveMss) {
         uint32_t sentBytes = sendSegment(effectiveMss);
         ASSERT(bytesToSend >= sentBytes);
@@ -1612,4 +1612,3 @@ bool TcpConnection::isSendQueueEmpty()
 
 } // namespace tcp
 } // namespace inet
-
