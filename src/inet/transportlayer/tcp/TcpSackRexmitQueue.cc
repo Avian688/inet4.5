@@ -19,6 +19,7 @@ TcpSackRexmitQueue::TcpSackRexmitQueue()
     m_sentSize = 0;
     m_sackedOut = 0;
     m_lostOut = 0;
+    m_totalDetectedLostBytes = 0;
     m_retrans = 0;
     clearRecentLossSample();
 }
@@ -40,6 +41,7 @@ void TcpSackRexmitQueue::init(uint32_t seqNum)
     m_sentSize = 0;
     m_sackedOut = 0;
     m_lostOut = 0;
+    m_totalDetectedLostBytes = 0;
     m_retrans = 0;
     clearRecentLossSample();
 }
@@ -1118,10 +1120,7 @@ bool TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
 
         if(sacked >= 3)
         {
-            if(!region.sacked  && !rit->second.lost){
-                region.lost = true;
-                m_lostOut += region.endSeqNum - region.beginSeqNum;
-                noteLostRegion(region);
+            if (!region.sacked && markRegionLost(region, true)) {
                 itemLost = true;
 //                if(rit->second.rexmitted == true){
 //                    rit->second.rexmitted = false;
@@ -1135,12 +1134,8 @@ bool TcpSackRexmitQueue::updateLost(uint32_t highestSackedSeqNum)
     {
         auto item = rexmitMap.begin();
         Region& region = item->second;
-        if(region.lost == false){
-            region.lost = true;
+        if (markRegionLost(region, true)) {
             itemLost = true;
-            m_lostOut += region.endSeqNum - region.beginSeqNum;
-            noteLostRegion(region);
-
         }
     }
 
@@ -1171,11 +1166,7 @@ void TcpSackRexmitQueue::markHeadAsLost()
             m_retrans -= rexmitMap.begin()->second.endSeqNum - rexmitMap.begin()->second.beginSeqNum;
         }
 
-        if (!rexmitMap.begin()->second.lost)
-        {
-            rexmitMap.begin()->second.lost = true;
-            m_lostOut +=rexmitMap.begin()->second.endSeqNum - rexmitMap.begin()->second.beginSeqNum;
-        }
+        markRegionLost(rexmitMap.begin()->second, false);
     }
 }
 
@@ -1216,12 +1207,8 @@ void TcpSackRexmitQueue::setAllLost()
         {
             m_lostOut += region.endSeqNum - region.beginSeqNum;
         }
-        else if(!region.sacked)
-        {
-            region.lost = true;
-            m_lostOut += region.endSeqNum - region.beginSeqNum;
-
-        }
+        else if (!region.sacked)
+            markRegionLost(region, false);
         region.rexmitted = false;
     }
     consistencyCheck();
@@ -1274,11 +1261,8 @@ uint32_t TcpSackRexmitQueue::getNumOfDiscontiguousSacks(uint32_t fromSeqNum)//co
         }
         if(counter >= 3){
             //std::cout << "\n COUNTER: " << counter << endl;
-            if (!iter->second.sacked && !iter->second.lost)
-            {
-                iter->second.lost = true;
-                m_lostOut += iter->second.endSeqNum - iter->second.beginSeqNum;
-            }
+            if (!iter->second.sacked)
+                markRegionLost(iter->second, false);
             //break;
         }
         prevSacked = iter->second.sacked;
@@ -1288,11 +1272,7 @@ uint32_t TcpSackRexmitQueue::getNumOfDiscontiguousSacks(uint32_t fromSeqNum)//co
     if (counter >= 3)
     {
         auto iter = rexmitMap.begin();
-        if (!iter->second.lost)
-        {
-            iter->second.lost = true;
-            m_lostOut += iter->second.endSeqNum - iter->second.beginSeqNum;
-        }
+        markRegionLost(iter->second, false);
     }
     //std::cout << "\n COUNT TEST: " << countTest << endl;
     //std::cout << "\n" << detailedInfo() << endl;
@@ -1413,6 +1393,20 @@ void TcpSackRexmitQueue::noteLostRegion(const Region& region)
     }
 }
 
+bool TcpSackRexmitQueue::markRegionLost(Region& region, bool recordRecentLossSample)
+{
+    if (region.lost)
+        return false;
+
+    region.lost = true;
+    const uint32_t lostBytes = region.endSeqNum - region.beginSeqNum;
+    m_lostOut += lostBytes;
+    m_totalDetectedLostBytes += lostBytes;
+    if (recordRecentLossSample)
+        noteLostRegion(region);
+    return true;
+}
+
 void TcpSackRexmitQueue::skbSent(uint32_t seqNum, simtime_t m_firstSentTime, simtime_t m_lastSentTime, simtime_t m_deliveredTime, uint32_t m_txInFlight, bool m_isAppLimited, uint32_t m_delivered, uint32_t m_appLimited)
 {
     if (!m_updatedSackEnabled)
@@ -1518,11 +1512,8 @@ bool TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
         double remaining = region.m_lastSentTime.dbl() + rack->getRtt().dbl() + rack->getReoWnd() - simTime().dbl();
         if (remaining <= 0)
         {
-            if (!region.lost)
+            if (markRegionLost(region, true))
             {
-                region.lost = true;
-                m_lostOut += region.endSeqNum - region.beginSeqNum;
-                noteLostRegion(region);
                 markedLost = true;
             }
             // Marking the retransmitted packets that are lost again

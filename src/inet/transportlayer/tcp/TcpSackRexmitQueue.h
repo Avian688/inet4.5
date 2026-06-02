@@ -49,6 +49,7 @@ class INET_API TcpSackRexmitQueue
     uint32_t m_sentSize;
     uint32_t m_sackedOut;
     uint32_t m_lostOut;
+    uint64_t m_totalDetectedLostBytes;
     uint32_t m_retrans;
     bool m_recentLossSampleValid;
     uint32_t m_recentLossBytes;
@@ -207,6 +208,8 @@ class INET_API TcpSackRexmitQueue
 
     virtual uint32_t getLost();
 
+    virtual uint64_t getTotalDetectedLostBytes() const { return m_totalDetectedLostBytes; }
+
     virtual void markHeadAsLost();
 
     virtual void setAllLost();
@@ -230,6 +233,8 @@ class INET_API TcpSackRexmitQueue
     virtual uint32_t getTotalRetransmitted() {return m_retrans;};
 
   protected:
+    bool markRegionLost(Region& region, bool recordRecentLossSample);
+
     void noteLostRegion(const Region& region);
 
     /*
