@@ -35,19 +35,19 @@ bool TcpRack::sentAfter(simtime_t t1, simtime_t t2, uint32_t seq1, uint32_t seq2
 void TcpRack::updateStats(uint32_t tser, bool retrans, simtime_t xmitTs, uint32_t endSeq, uint32_t sndNxt, simtime_t lastRtt)
 {
   // Calculate RTT
-  simtime_t rtt = lastRtt;
+  simtime_t rtt = xmitTs > 0 ? simTime() - xmitTs : lastRtt;
 
-  double tserTime = (tser/1000);
+  double tserTime = tser / 1000.0;
 
   // Check if the ACK was for a retransmitted packet. Also if it was a spurious retransmission
   if (retrans)
     {
-      if (tserTime < xmitTs.dbl())
+      if (tser != 0 && tserTime < xmitTs.dbl())
         {
           return;
         }
 
-      if (rtt < m_minRtt)
+      if (m_minRtt != 0 && rtt < m_minRtt)
         {
             return;
         }
@@ -84,7 +84,7 @@ void TcpRack::updateStats(uint32_t tser, bool retrans, simtime_t xmitTs, uint32_
     }
 }
 
-void TcpRack::updateReoWnd(bool reordSeen, bool dsackSeen, uint32_t sndNxt, uint32_t sndUna, uint32_t sacked, uint32_t dupAckThresh, bool exiting, bool lossRecovery)
+void TcpRack::updateReoWnd(bool reordSeen, bool dsackSeen, uint32_t sndNxt, uint32_t sndUna, uint32_t sacked, uint32_t dupAckThresh, uint32_t sndMss, bool exiting, bool lossRecovery)
 {
   if (dsackSeen)
     {
@@ -106,8 +106,9 @@ void TcpRack::updateReoWnd(bool reordSeen, bool dsackSeen, uint32_t sndNxt, uint
     }
   else if (exiting)              // Exiting Loss Recovery
     {
-      m_reoWndPersist--;
-      if (m_reoWndPersist <= 0)
+      if (m_reoWndPersist > 0)
+        m_reoWndPersist--;
+      if (m_reoWndPersist == 0)
         {
           m_reoWndIncr = 1;
         }
@@ -116,7 +117,7 @@ void TcpRack::updateReoWnd(bool reordSeen, bool dsackSeen, uint32_t sndNxt, uint
   if (!reordSeen)
     {
       bool congState = false; //TODO FIX CONG STATE, SHOULD CHECK LOSS RECOVERY
-      if (lossRecovery || (sacked >= dupAckThresh*1448))
+      if (lossRecovery || (sacked >= dupAckThresh * sndMss))
         {
           m_reoWnd = 0;
           return;

@@ -35,7 +35,7 @@ public:
     /**
      * Updates reo_wnd
      */
-    void updateReoWnd(bool reordSeen, bool dsackSeen, uint32_t sndNxt, uint32_t sndUna, uint32_t sacked, uint32_t dupAckThresh, bool exiting, bool lossRecovery);
+    void updateReoWnd(bool reordSeen, bool dsackSeen, uint32_t sndNxt, uint32_t sndUna, uint32_t sacked, uint32_t dupAckThresh, uint32_t sndMss, bool exiting, bool lossRecovery);
 
     /**
      *  Updates RACK parameters

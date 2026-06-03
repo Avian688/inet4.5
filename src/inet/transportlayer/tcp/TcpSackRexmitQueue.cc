@@ -143,6 +143,17 @@ void TcpSackRexmitQueue::discardUpTo(uint32_t seqNum)
                     }
                     i = rexmitMap.erase(i);
             }
+            if (i != rexmitMap.end() && seqLess(i->second.beginSeqNum, seqNum) && seqLess(seqNum, i->second.endSeqNum)) {
+                const uint32_t ackedBytes = seqNum - i->second.beginSeqNum;
+                m_sentSize -= ackedBytes;
+                if (i->second.sacked)
+                    m_sackedOut -= ackedBytes;
+                if (i->second.rexmitted)
+                    m_retrans -= ackedBytes;
+                if (i->second.lost)
+                    m_lostOut -= ackedBytes;
+                i->second.beginSeqNum = seqNum;
+            }
 //            if (i != iEnd) {
 //                //ASSERT(seqLE(i->second.beginSeqNum, seqNum) && seqLess(seqNum, i->second.endSeqNum));
 //                m_sentSize -= seqNum - i->second.beginSeqNum;
@@ -536,6 +547,11 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum)
                        region.lost = false;
                     }
 
+                    if (region.rexmitted) {
+                       m_retrans -= packetSize;
+                       region.rexmitted = false;
+                    }
+
                     m_sackedOut += packetSize;
                     region.sacked = true; // set sacked bit //may need to merge
                 }
@@ -742,6 +758,11 @@ std::list<uint32_t> TcpSackRexmitQueue::setSackedBitList(uint32_t fromSeqNum, ui
                     if(region.lost == true) {
                         region.lost = false;
                         m_lostOut -= packetSize;
+                    }
+
+                    if (region.rexmitted) {
+                        region.rexmitted = false;
+                        m_retrans -= packetSize;
                     }
 
                     m_sackedOut += packetSize;
@@ -1446,17 +1467,18 @@ void TcpSackRexmitQueue::consistencyCheck() const
 
     for (auto it = rexmitMap.begin(); it != rexmitMap.end(); ++it)
     {
+        const uint32_t packetSize = it->second.endSeqNum - it->second.beginSeqNum;
         if (it->second.sacked)
         {
-            sacked += rexmitMap.begin()->second.endSeqNum - rexmitMap.begin()->second.beginSeqNum;
+            sacked += packetSize;
         }
         if (it->second.lost)
         {
-            lost += rexmitMap.begin()->second.endSeqNum - rexmitMap.begin()->second.beginSeqNum;
+            lost += packetSize;
         }
         if (it->second.rexmitted)
         {
-            retrans += rexmitMap.begin()->second.endSeqNum - rexmitMap.begin()->second.beginSeqNum;
+            retrans += packetSize;
         }
     }
 
@@ -1498,8 +1520,7 @@ bool TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
             continue;
         }
 
-        // Packet lost but not retransmitted
-        if ((region.sacked && !region.rexmitted)) // Confirm this condition
+        if (region.lost && !region.rexmitted)
         {
             continue;
         }
@@ -1519,8 +1540,10 @@ bool TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
             // Marking the retransmitted packets that are lost again
             else if (region.rexmitted)
             {
+                noteLostRegion(region);
                 region.rexmitted = false;
                 m_retrans -= region.endSeqNum - region.beginSeqNum;
+                markedLost = true;
             }
         }
         else
