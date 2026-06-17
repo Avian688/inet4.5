@@ -40,7 +40,7 @@ public:
     /**
      *  Updates RACK parameters
      */
-    void updateStats(uint32_t tser, bool retrans, simtime_t xmitTs, uint32_t endSseq, uint32_t sndNxt, simtime_t lastRtt);
+    bool updateStats(uint32_t tser, bool retrans, simtime_t xmitTs, uint32_t endSseq, uint32_t sndNxt, simtime_t lastRtt);
 
     double getReoWnd() { return m_reoWnd;}
 

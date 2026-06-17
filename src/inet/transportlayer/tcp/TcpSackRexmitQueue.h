@@ -210,7 +210,11 @@ class INET_API TcpSackRexmitQueue
 
     virtual uint64_t getTotalDetectedLostBytes() const { return m_totalDetectedLostBytes; }
 
+    virtual bool markRegionLostByEndSeq(uint32_t endSeq, bool recordRecentLossSample);
+
     virtual void markHeadAsLost();
+
+    virtual void markHeadAsLostIfUnsacked();
 
     virtual void setAllLost();
 

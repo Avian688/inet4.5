@@ -1191,6 +1191,24 @@ void TcpSackRexmitQueue::markHeadAsLost()
     }
 }
 
+void TcpSackRexmitQueue::markHeadAsLostIfUnsacked()
+{
+    if (!m_updatedSackEnabled || rexmitMap.empty())
+        return;
+
+    Region& head = rexmitMap.begin()->second;
+    if (head.sacked)
+        return;
+
+    if (head.rexmitted)
+    {
+        head.rexmitted = false;
+        m_retrans -= head.endSeqNum - head.beginSeqNum;
+    }
+
+    markRegionLost(head, false);
+}
+
 void TcpSackRexmitQueue::setAllLost()
 {
     if (!m_updatedSackEnabled) {
@@ -1426,6 +1444,15 @@ bool TcpSackRexmitQueue::markRegionLost(Region& region, bool recordRecentLossSam
     if (recordRecentLossSample)
         noteLostRegion(region);
     return true;
+}
+
+bool TcpSackRexmitQueue::markRegionLostByEndSeq(uint32_t endSeq, bool recordRecentLossSample)
+{
+    if (!m_updatedSackEnabled)
+        return false;
+
+    auto it = rexmitMap.find(endSeq);
+    return it != rexmitMap.end() && markRegionLost(it->second, recordRecentLossSample);
 }
 
 void TcpSackRexmitQueue::skbSent(uint32_t seqNum, simtime_t m_firstSentTime, simtime_t m_lastSentTime, simtime_t m_deliveredTime, uint32_t m_txInFlight, bool m_isAppLimited, uint32_t m_delivered, uint32_t m_appLimited)

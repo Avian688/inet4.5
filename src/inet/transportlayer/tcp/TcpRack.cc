@@ -32,7 +32,7 @@ bool TcpRack::sentAfter(simtime_t t1, simtime_t t2, uint32_t seq1, uint32_t seq2
     return (t1 > t2 || (t1 == t2 && seq1 > seq2));
 }
 
-void TcpRack::updateStats(uint32_t tser, bool retrans, simtime_t xmitTs, uint32_t endSeq, uint32_t sndNxt, simtime_t lastRtt)
+bool TcpRack::updateStats(uint32_t tser, bool retrans, simtime_t xmitTs, uint32_t endSeq, uint32_t sndNxt, simtime_t lastRtt)
 {
   // Calculate RTT
   simtime_t rtt = xmitTs > 0 ? simTime() - xmitTs : lastRtt;
@@ -44,12 +44,12 @@ void TcpRack::updateStats(uint32_t tser, bool retrans, simtime_t xmitTs, uint32_
     {
       if (tser != 0 && tserTime < xmitTs.dbl())
         {
-          return;
+          return false;
         }
 
       if (m_minRtt != 0 && rtt < m_minRtt)
         {
-            return;
+            return false;
         }
     }
 
@@ -82,6 +82,7 @@ void TcpRack::updateStats(uint32_t tser, bool retrans, simtime_t xmitTs, uint32_
       m_rackXmitTs = xmitTs;
       m_rackEndSeq = endSeq;
     }
+  return rtt > 0;
 }
 
 void TcpRack::updateReoWnd(bool reordSeen, bool dsackSeen, uint32_t sndNxt, uint32_t sndUna, uint32_t sacked, uint32_t dupAckThresh, uint32_t sndMss, bool exiting, bool lossRecovery)
