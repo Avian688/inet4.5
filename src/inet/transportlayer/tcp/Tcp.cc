@@ -257,22 +257,6 @@ TcpConnection *Tcp::findConnForSegment(const Ptr<const TcpHeader>& tcpHeader, L3
         return i->second;
 
 
-    std::cout << "---- TcpConnMap contents ----" << std::endl;
-
-    for (const auto& entry : tcpConnMap) {
-        const SockPair& key = entry.first;
-        TcpConnection* conn = entry.second;
-
-        std::cout << "Key: [localAddr=" << key.localAddr
-                  << ", remoteAddr=" << key.remoteAddr
-                  << ", localPort=" << key.localPort
-                  << ", remotePort=" << key.remotePort << "]"
-                  << " -> Connection: " << (conn ? conn->getClassAndFullName() : "nullptr")
-                  << std::endl;
-    }
-
-    std::cout << "---- End of TcpConnMap ----" << std::endl;
-
     // given up
     return nullptr;
 }
@@ -570,4 +554,3 @@ std::ostream& operator<<(std::ostream& os, const TcpConnection& conn)
 
 } // namespace tcp
 } // namespace inet
-

@@ -344,8 +344,7 @@ void TcpConnection::sendDataDuringLossRecoveryPhase(uint32_t congestionWindow)
         // steps C.1 -- C.5)."
         uint32_t seqNum;
 
-        if (!nextSeg(seqNum)){ // if nextSeg() returns false (=failure): terminate steps C.1 -- C.5
-            std::cout << "COULDNT FIND SEGMENT - HEAD MAYBE SHOULD SEND \n " << endl;
+        if (!nextSeg(seqNum)) { // if nextSeg() returns false (=failure): terminate steps C.1 -- C.5
             break;
         }
 

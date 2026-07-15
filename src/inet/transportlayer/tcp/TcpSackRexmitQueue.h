@@ -23,20 +23,20 @@ class INET_API TcpSackRexmitQueue
     TcpConnection *conn; // the connection that owns this queue
 
     struct Region {
-        uint32_t beginSeqNum;
-        uint32_t endSeqNum;
-        bool sacked; // indicates whether region has already been sacked by data receiver
-        bool rexmitted; // indicates whether region has already been retransmitted by data sender
-        int numOfDiscontiguousSacks;
-        bool lost;
+        uint32_t beginSeqNum = 0;
+        uint32_t endSeqNum = 0;
+        bool sacked = false; // indicates whether region has already been sacked by data receiver
+        bool rexmitted = false; // indicates whether region has already been retransmitted by data sender
+        int numOfDiscontiguousSacks = 0;
+        bool lost = false;
 
-        uint32_t m_delivered;
-        simtime_t m_firstSentTime;
-        simtime_t m_lastSentTime;
-        simtime_t m_deliveredTime;
-        uint32_t m_bytes;
-        uint32_t m_txInFlight;
-        bool m_isAppLimited;
+        uint32_t m_delivered = 0;
+        simtime_t m_firstSentTime = SIMTIME_ZERO;
+        simtime_t m_lastSentTime = SIMTIME_ZERO;
+        simtime_t m_deliveredTime = SIMTIME_ZERO;
+        uint32_t m_bytes = 0;
+        uint32_t m_txInFlight = 0;
+        bool m_isAppLimited = false;
     };
 
     typedef std::list<Region> RexmitQueue;
