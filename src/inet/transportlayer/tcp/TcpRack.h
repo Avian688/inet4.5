@@ -44,6 +44,12 @@ public:
 
     double getReoWnd() { return m_reoWnd;}
 
+    void markAdvanced() { m_advanced = true; }
+
+    // ACK-path loss scans require newly delivered RACK evidence. The
+    // reordering timer has a separate forced-scan path.
+    bool consumeAdvanced() { bool advanced = m_advanced; m_advanced = false; return advanced; }
+
     simtime_t getXmitTs() { return m_rackXmitTs;}
 
     double getEndSeq() { return m_rackEndSeq;}
@@ -61,6 +67,7 @@ protected:
     uint32_t m_reoWndPersist = 16; //!< Number of loss recoveries before resetting RACK.reo_wnd
     double m_srtt = 0; //!< Smoothened RTT (SRTT) as specified in [RFC6298]
     double m_alpha = 0.125; //!< EWMA constant for calculation of SRTT (alpha = 1/8)
+    bool m_advanced = false; //!< Newly delivered data advanced the RACK timeline
 };
 
 } /* namespace tcp */

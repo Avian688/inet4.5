@@ -1554,6 +1554,11 @@ bool TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
 
         else if (!rack->sentAfter(rack->getXmitTs(), region.m_lastSentTime, rack->getEndSeq(), region.endSeqNum))
         {
+            // Linux scans a queue ordered by transmission time. This map is
+            // ordered by sequence number, so a low-sequence retransmission
+            // can be newer than later outstanding original transmissions.
+            if (region.rexmitted)
+                continue;
             break;
         }
 
