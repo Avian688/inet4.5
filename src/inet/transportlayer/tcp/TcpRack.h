@@ -44,8 +44,6 @@ public:
 
     double getReoWnd() { return m_reoWnd;}
 
-    void markAdvanced() { m_advanced = true; }
-
     // ACK-path loss scans require newly delivered RACK evidence. The
     // reordering timer has a separate forced-scan path.
     bool consumeAdvanced() { bool advanced = m_advanced; m_advanced = false; return advanced; }

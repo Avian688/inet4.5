@@ -27,6 +27,7 @@ class INET_API TcpSackRexmitQueue
         uint32_t endSeqNum = 0;
         bool sacked = false; // indicates whether region has already been sacked by data receiver
         bool rexmitted = false; // indicates whether region has already been retransmitted by data sender
+        bool everRetransmitted = false; // persistent TCPCB_RETRANS-style history for RACK
         int numOfDiscontiguousSacks = 0;
         bool lost = false;
 

@@ -77,6 +77,9 @@ bool TcpRack::updateStats(uint32_t tser, bool retrans, simtime_t xmitTs, uint32_
       m_srtt = (1 - m_alpha) * m_srtt + m_alpha * m_rackRtt.dbl();
     }
 
+  // Match Linux tcp_rack_advance(): every valid newly delivered packet
+  // makes the next ACK-path RACK scan eligible.
+  m_advanced = true;
   if (sentAfter(xmitTs, m_rackXmitTs, endSeq, m_rackEndSeq))
     {
       m_rackXmitTs = xmitTs;

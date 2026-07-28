@@ -243,6 +243,7 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
 
             while (i != rexmitQueue.end() && seqLE(i->endSeqNum, toSeqNum)) {
                 i->rexmitted = true;
+                i->everRetransmitted = true;
                 fromSeqNum = i->endSeqNum;
                 found = true;
                 i++;
@@ -256,6 +257,7 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
                 region.endSeqNum = toSeqNum;
                 region.sacked = beforeEnd ? i->sacked : false;
                 region.rexmitted = beforeEnd;
+                region.everRetransmitted = beforeEnd;
                 region.lost = false;
                 rexmitQueue.insert(i, region);
                 found = true;
@@ -381,6 +383,7 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
             }
             //std::cout << "\n MARKING AS RETRANSMITTED AT SIMTIME: " << simTime() << " SeqNo: " << iter->second.endSeqNum << endl;
             iter->second.rexmitted = true;
+            iter->second.everRetransmitted = true;
             EV_INFO << "rexmitQ: " << " Retransmitting [" << fromSeqNum << ".." << toSeqNum << ")\n";
             //iter->second.lost = false;
             fromSeqNum = iter->second.endSeqNum;
@@ -398,6 +401,7 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
             region.endSeqNum = toSeqNum;
             region.sacked = beforeEnd ? iter->second.sacked : false; //splitting so must have same sack as previous block
             region.rexmitted = beforeEnd;
+            region.everRetransmitted = beforeEnd;
 
 //            if(region.rexmitted == true){
 //                region.lost = false;
