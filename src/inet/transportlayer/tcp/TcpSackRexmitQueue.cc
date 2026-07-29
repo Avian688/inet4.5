@@ -7,6 +7,9 @@
 
 #include "inet/transportlayer/tcp/TcpSackRexmitQueue.h"
 
+#include <algorithm>
+#include <limits>
+
 namespace inet {
 
 namespace tcp {
@@ -1213,7 +1216,7 @@ void TcpSackRexmitQueue::markHeadAsLostIfUnsacked()
     markRegionLost(head, false);
 }
 
-void TcpSackRexmitQueue::setAllLost()
+void TcpSackRexmitQueue::setAllLost(TcpRack *rack)
 {
     if (!m_updatedSackEnabled) {
         resetSackedBit();
@@ -1241,18 +1244,32 @@ void TcpSackRexmitQueue::setAllLost()
 //        region.lost = true;
 //    }
 
-    m_retrans = 0;
-    m_lostOut = 0;
+    if (rexmitMap.empty())
+        return;
 
-    for (auto iter = rexmitMap.begin(); iter != rexmitMap.end(); iter++) {
+    const bool sackReneging = rexmitMap.begin()->second.sacked;
+    if (sackReneging) {
+        for (auto& item : rexmitMap)
+            item.second.sacked = false;
+        m_sackedOut = 0;
+    }
+
+    for (auto iter = rexmitMap.begin(); iter != rexmitMap.end(); ++iter) {
         Region& region = iter->second;
-        if(region.lost)
-        {
-            m_lostOut += region.endSeqNum - region.beginSeqNum;
+        if (region.sacked)
+            continue;
+
+        const bool isHead = iter == rexmitMap.begin();
+        if (!sackReneging && rack != nullptr && !isHead) {
+            const simtime_t remaining = region.m_lastSentTime + rack->getRtt() - simTime();
+            if (remaining > SIMTIME_ZERO)
+                continue;
         }
-        else if (!region.sacked)
-            markRegionLost(region, false);
-        region.rexmitted = false;
+
+        if (region.lost)
+            markRetransmissionLost(region, true);
+        else
+            markRegionLost(region, true);
     }
     consistencyCheck();
 }
@@ -1403,37 +1420,39 @@ uint32_t TcpSackRexmitQueue::getInFlight()
 
 void TcpSackRexmitQueue::clearRecentLossSample()
 {
-    m_recentLossSampleValid = false;
-    m_recentLossBytes = 0;
-    m_recentLossTxInFlight = 0;
-    m_recentLossIsAppLimited = false;
+    m_recentLossSamples.clear();
 }
 
 bool TcpSackRexmitQueue::getRecentLossSample(uint32_t& txInFlight, uint32_t& lostBytes, bool& isAppLimited) const
 {
-    if (!m_recentLossSampleValid)
+    if (m_recentLossSamples.empty())
         return false;
 
-    txInFlight = m_recentLossTxInFlight;
-    lostBytes = m_recentLossBytes;
-    isAppLimited = m_recentLossIsAppLimited;
+    uint64_t totalLostBytes = 0;
+    txInFlight = 0;
+    isAppLimited = true;
+    for (const auto& sample : m_recentLossSamples) {
+        totalLostBytes += sample.m_lostPacketBytes;
+        txInFlight = std::max(txInFlight, sample.m_txInFlight);
+        isAppLimited = isAppLimited && sample.m_isAppLimited;
+    }
+    lostBytes = static_cast<uint32_t>(std::min<uint64_t>(
+            totalLostBytes, std::numeric_limits<uint32_t>::max()));
     return true;
 }
 
-void TcpSackRexmitQueue::noteLostRegion(const Region& region)
+void TcpSackRexmitQueue::noteLostRegion(const Region& region, uint32_t lostPacketBytes)
 {
-    const uint32_t lostBytes = region.endSeqNum - region.beginSeqNum;
-    if (!m_recentLossSampleValid) {
-        m_recentLossSampleValid = true;
-        m_recentLossBytes = lostBytes;
-        m_recentLossTxInFlight = region.m_txInFlight;
-        m_recentLossIsAppLimited = region.m_isAppLimited;
-    }
-    else {
-        m_recentLossBytes += lostBytes;
-        m_recentLossTxInFlight = std::max(m_recentLossTxInFlight, region.m_txInFlight);
-        m_recentLossIsAppLimited = m_recentLossIsAppLimited && region.m_isAppLimited;
-    }
+    const uint64_t lostSinceSend = m_totalDetectedLostBytes >= region.m_lostAtSend ?
+            m_totalDetectedLostBytes - region.m_lostAtSend : 0;
+
+    LossSample sample;
+    sample.m_lostPacketBytes = lostPacketBytes;
+    sample.m_lostBytesSinceSend = static_cast<uint32_t>(std::min<uint64_t>(
+            lostSinceSend, std::numeric_limits<uint32_t>::max()));
+    sample.m_txInFlight = region.m_txInFlight;
+    sample.m_isAppLimited = region.m_isAppLimited;
+    m_recentLossSamples.push_back(sample);
 }
 
 bool TcpSackRexmitQueue::markRegionLost(Region& region, bool recordRecentLossSample)
@@ -1446,7 +1465,22 @@ bool TcpSackRexmitQueue::markRegionLost(Region& region, bool recordRecentLossSam
     m_lostOut += lostBytes;
     m_totalDetectedLostBytes += lostBytes;
     if (recordRecentLossSample)
-        noteLostRegion(region);
+        noteLostRegion(region, lostBytes);
+    return true;
+}
+
+bool TcpSackRexmitQueue::markRetransmissionLost(Region& region, bool recordRecentLossSample)
+{
+    if (!region.rexmitted)
+        return false;
+
+    const uint32_t lostBytes = region.endSeqNum - region.beginSeqNum;
+    ASSERT(m_retrans >= lostBytes);
+    region.rexmitted = false;
+    m_retrans -= lostBytes;
+    m_totalDetectedLostBytes += lostBytes;
+    if (recordRecentLossSample)
+        noteLostRegion(region, lostBytes);
     return true;
 }
 
@@ -1471,6 +1505,7 @@ void TcpSackRexmitQueue::skbSent(uint32_t seqNum, simtime_t m_firstSentTime, sim
     region.m_txInFlight = m_txInFlight;
     region.m_isAppLimited = (m_appLimited != 0);
     region.m_delivered = m_delivered;
+    region.m_lostAtSend = m_totalDetectedLostBytes;
     //return m_sentSizel
 }
 
@@ -1537,55 +1572,51 @@ uint32_t TcpSackRexmitQueue::getTailSequence()
     return m_updatedSackEnabled && !rexmitMap.empty() ? rexmitMap.begin()->second.endSeqNum : end;
 }
 
+simtime_t TcpSackRexmitQueue::getRtoReferenceTime() const
+{
+    if (!m_updatedSackEnabled || rexmitMap.empty())
+        return SIMTIME_ZERO;
+
+    return rexmitMap.begin()->second.m_lastSentTime;
+}
+
 bool TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
 {
     if (!m_updatedSackEnabled || rack == nullptr)
         return false;
 
-    bool markedLost = false;
-    for (auto it = rexmitMap.begin(); it != rexmitMap.end(); ++it)
+    std::vector<Region *> expiredRegions;
+    for (auto& item : rexmitMap)
     {
-        Region& region = it->second;
-        if (region.sacked)
-        {
+        Region& region = item.second;
+        if (region.sacked || (region.lost && !region.rexmitted))
             continue;
-        }
 
-        if (region.lost && !region.rexmitted)
-        {
+        // Linux can break here because tsorted_sent_queue is ordered by
+        // transmit time. This scoreboard is sequence-ordered, so skip a newer
+        // region and keep looking for older transmissions later in the map.
+        if (!rack->sentAfter(rack->getXmitTs(), region.m_lastSentTime,
+                             rack->getEndSeq(), region.endSeqNum))
             continue;
-        }
-
-        else if (!rack->sentAfter(rack->getXmitTs(), region.m_lastSentTime, rack->getEndSeq(), region.endSeqNum))
-        {
-            // Linux scans a queue ordered by transmission time. This map is
-            // ordered by sequence number, so a low-sequence retransmission
-            // can be newer than later outstanding original transmissions.
-            if (region.rexmitted)
-                continue;
-            break;
-        }
 
         double remaining = region.m_lastSentTime.dbl() + rack->getRtt().dbl() + rack->getReoWnd() - simTime().dbl();
         if (remaining <= 0)
-        {
-            if (markRegionLost(region, true))
-            {
-                markedLost = true;
-            }
-            // Marking the retransmitted packets that are lost again
-            else if (region.rexmitted)
-            {
-                noteLostRegion(region);
-                region.rexmitted = false;
-                m_retrans -= region.endSeqNum - region.beginSeqNum;
-                markedLost = true;
-            }
-        }
+            expiredRegions.push_back(&region);
         else
-        {
             timeout = std::max(remaining, timeout);
-        }
+    }
+
+    std::sort(expiredRegions.begin(), expiredRegions.end(),
+            [](const Region *left, const Region *right) {
+                if (left->m_lastSentTime != right->m_lastSentTime)
+                    return left->m_lastSentTime < right->m_lastSentTime;
+                return left->endSeqNum < right->endSeqNum;
+            });
+
+    bool markedLost = false;
+    for (Region *region : expiredRegions) {
+        if (markRegionLost(*region, true) || markRetransmissionLost(*region, true))
+            markedLost = true;
     }
     return markedLost;
 }

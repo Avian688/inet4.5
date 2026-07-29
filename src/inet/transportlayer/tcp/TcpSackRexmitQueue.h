@@ -11,6 +11,7 @@
 #include "inet/transportlayer/tcp_common/TcpHeader.h"
 #include "TcpRack.h"
 #include <tuple>
+#include <vector>
 namespace inet {
 namespace tcp {
 
@@ -38,6 +39,14 @@ class INET_API TcpSackRexmitQueue
         uint32_t m_bytes = 0;
         uint32_t m_txInFlight = 0;
         bool m_isAppLimited = false;
+        uint64_t m_lostAtSend = 0;
+    };
+
+    struct LossSample {
+        uint32_t m_lostPacketBytes = 0;
+        uint32_t m_lostBytesSinceSend = 0;
+        uint32_t m_txInFlight = 0;
+        bool m_isAppLimited = false;
     };
 
     typedef std::list<Region> RexmitQueue;
@@ -52,10 +61,7 @@ class INET_API TcpSackRexmitQueue
     uint32_t m_lostOut;
     uint64_t m_totalDetectedLostBytes;
     uint32_t m_retrans;
-    bool m_recentLossSampleValid;
-    uint32_t m_recentLossBytes;
-    uint32_t m_recentLossTxInFlight;
-    bool m_recentLossIsAppLimited;
+    std::vector<LossSample> m_recentLossSamples;
     bool m_updatedSackEnabled = true;
 
   public:
@@ -217,11 +223,13 @@ class INET_API TcpSackRexmitQueue
 
     virtual void markHeadAsLostIfUnsacked();
 
-    virtual void setAllLost();
+    virtual void setAllLost(TcpRack *rack = nullptr);
 
     virtual void clearRecentLossSample();
 
     virtual bool getRecentLossSample(uint32_t& txInFlight, uint32_t& lostBytes, bool& isAppLimited) const;
+
+    virtual const std::vector<LossSample>& getRecentLossSamples() const { return m_recentLossSamples; }
 
     virtual void skbSent(uint32_t seqNum, simtime_t m_firstSentTime, simtime_t m_lastSentTime, simtime_t m_deliveredTime, uint32_t m_txInFlight, bool m_IsAppLimited, uint32_t m_delivered, uint32_t m_appLimited);
 
@@ -230,6 +238,8 @@ class INET_API TcpSackRexmitQueue
     virtual bool findRegion(uint32_t seqNum);
 
     virtual uint32_t getTailSequence();
+
+    virtual simtime_t getRtoReferenceTime() const;
 
     virtual bool checkRackLoss(TcpRack* rack, double &timeout);
 
@@ -240,7 +250,9 @@ class INET_API TcpSackRexmitQueue
   protected:
     bool markRegionLost(Region& region, bool recordRecentLossSample);
 
-    void noteLostRegion(const Region& region);
+    bool markRetransmissionLost(Region& region, bool recordRecentLossSample);
+
+    void noteLostRegion(const Region& region, uint32_t lostPacketBytes);
 
     /*
      * Returns if TcpSackRexmitQueue is valid or not.
