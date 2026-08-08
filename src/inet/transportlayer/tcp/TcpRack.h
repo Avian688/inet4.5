@@ -42,17 +42,17 @@ public:
      */
     bool updateStats(uint32_t tser, bool retrans, simtime_t xmitTs, uint32_t endSseq, uint32_t sndNxt, simtime_t lastRtt);
 
-    double getReoWnd() { return m_reoWnd;}
+    double getReoWnd() const { return m_reoWnd;}
 
     // ACK-path loss scans require newly delivered RACK evidence. The
     // reordering timer has a separate forced-scan path.
     bool consumeAdvanced() { bool advanced = m_advanced; m_advanced = false; return advanced; }
 
-    simtime_t getXmitTs() { return m_rackXmitTs;}
+    simtime_t getXmitTs() const { return m_rackXmitTs;}
 
-    double getEndSeq() { return m_rackEndSeq;}
+    uint32_t getEndSeq() const { return m_rackEndSeq;}
 
-    simtime_t getRtt(){ return m_rackRtt;}
+    simtime_t getRtt() const { return m_rackRtt;}
 protected:
     simtime_t m_rackXmitTs = 0; //!< Latest transmission timestamp of Rack.packet
     uint32_t m_rackEndSeq = 0;//!< Ending sequence number of Rack.packet

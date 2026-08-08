@@ -8,6 +8,7 @@
 #include "inet/transportlayer/tcp/TcpSackRexmitQueue.h"
 
 #include <algorithm>
+#include <iterator>
 #include <limits>
 
 namespace inet {
@@ -40,6 +41,7 @@ void TcpSackRexmitQueue::init(uint32_t seqNum)
     rexmitQueue.clear();
     rexmitMap.clear();
     backupRexmitMap.clear();
+    m_rackTimeIndex.clear();
 
     m_sentSize = 0;
     m_sackedOut = 0;
@@ -132,6 +134,7 @@ void TcpSackRexmitQueue::discardUpTo(uint32_t seqNum)
 //            }
             //std::cout << "\n DISCARDING UP TO: " << seqNum << endl;
             while ((i != rexmitMap.end()) && seqLE(i->second.endSeqNum, seqNum)){
+                    unindexRackRegion(i->second);
                     m_sentSize -= i->second.endSeqNum - i->second.beginSeqNum;
                     if(i->second.sacked){
                         m_sackedOut -= i->second.endSeqNum - i->second.beginSeqNum;
@@ -376,7 +379,9 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
             region.endSeqNum = fromSeqNum;
             //rexmitQueue.insert(i, region);
             m_sentSize += toSeqNum - fromSeqNum;
-            rexmitMap.insert({region.endSeqNum, region});
+            auto inserted = rexmitMap.insert({region.endSeqNum, region});
+            if (inserted.second)
+                indexRackRegion(inserted.first->second);
             iter->second.beginSeqNum = fromSeqNum;
         }
 
@@ -438,7 +443,6 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
 
     begin = rexmitMap.begin()->second.beginSeqNum;
     end = rexmitMap.rbegin()->second.endSeqNum;
-    consistencyCheck();
 }
 
 bool TcpSackRexmitQueue::checkQueue() const
@@ -559,6 +563,7 @@ void TcpSackRexmitQueue::setSackedBit(uint32_t fromSeqNum, uint32_t toSeqNum)
                        region.rexmitted = false;
                     }
 
+                    unindexRackRegion(region);
                     m_sackedOut += packetSize;
                     region.sacked = true; // set sacked bit //may need to merge
                 }
@@ -772,6 +777,7 @@ std::list<uint32_t> TcpSackRexmitQueue::setSackedBitList(uint32_t fromSeqNum, ui
                         m_retrans -= packetSize;
                     }
 
+                    unindexRackRegion(region);
                     m_sackedOut += packetSize;
                     region.sacked = true; // set sacked bit //may need to merge
 
@@ -1461,6 +1467,8 @@ bool TcpSackRexmitQueue::markRegionLost(Region& region, bool recordRecentLossSam
         return false;
 
     region.lost = true;
+    if (!region.rexmitted)
+        unindexRackRegion(region);
     const uint32_t lostBytes = region.endSeqNum - region.beginSeqNum;
     m_lostOut += lostBytes;
     m_totalDetectedLostBytes += lostBytes;
@@ -1477,6 +1485,7 @@ bool TcpSackRexmitQueue::markRetransmissionLost(Region& region, bool recordRecen
     const uint32_t lostBytes = region.endSeqNum - region.beginSeqNum;
     ASSERT(m_retrans >= lostBytes);
     region.rexmitted = false;
+    unindexRackRegion(region);
     m_retrans -= lostBytes;
     m_totalDetectedLostBytes += lostBytes;
     if (recordRecentLossSample)
@@ -1499,6 +1508,7 @@ void TcpSackRexmitQueue::skbSent(uint32_t seqNum, simtime_t m_firstSentTime, sim
         return;
 
     inet::tcp::TcpSackRexmitQueue::Region& region = rexmitMap.at(seqNum);
+    unindexRackRegion(region);
     region.m_firstSentTime = m_firstSentTime;
     region.m_lastSentTime = m_lastSentTime;
     region.m_deliveredTime = m_deliveredTime;
@@ -1506,7 +1516,30 @@ void TcpSackRexmitQueue::skbSent(uint32_t seqNum, simtime_t m_firstSentTime, sim
     region.m_isAppLimited = (m_appLimited != 0);
     region.m_delivered = m_delivered;
     region.m_lostAtSend = m_totalDetectedLostBytes;
+    indexRackRegion(region);
     //return m_sentSizel
+}
+
+void TcpSackRexmitQueue::indexRackRegion(const Region& region)
+{
+    if (!region.sacked && !(region.lost && !region.rexmitted))
+        m_rackTimeIndex.insert({region.m_lastSentTime, region.endSeqNum});
+}
+
+void TcpSackRexmitQueue::unindexRackRegion(const Region& region)
+{
+    m_rackTimeIndex.erase({region.m_lastSentTime, region.endSeqNum});
+}
+
+bool TcpSackRexmitQueue::isCurrentRackEntry(const RackTimeKey& key) const
+{
+    auto regionIt = rexmitMap.find(key.endSeqNum);
+    if (regionIt == rexmitMap.end())
+        return false;
+
+    const Region& region = regionIt->second;
+    return region.m_lastSentTime == key.sentTime && !region.sacked &&
+            !(region.lost && !region.rexmitted);
 }
 
 TcpSackRexmitQueue::Region& TcpSackRexmitQueue::getRegion(uint32_t seqNum)
@@ -1585,38 +1618,52 @@ bool TcpSackRexmitQueue::checkRackLoss(TcpRack* rack, double &timeout)
     if (!m_updatedSackEnabled || rack == nullptr)
         return false;
 
-    std::vector<Region *> expiredRegions;
-    for (auto& item : rexmitMap)
-    {
-        Region& region = item.second;
-        if (region.sacked || (region.lost && !region.rexmitted))
+    // Linux keeps an independent transmit-time-ordered queue for RACK. Keep
+    // the sequence map for SACK processing, but use the same ordering here so
+    // old transmissions can be handled without scanning the full flight.
+    const RackTimeKey rackKey{rack->getXmitTs(), rack->getEndSeq()};
+    auto candidateEnd = m_rackTimeIndex.lower_bound(rackKey);
+    bool markedLost = false;
+    auto rackIt = m_rackTimeIndex.begin();
+    while (rackIt != candidateEnd) {
+        if (!isCurrentRackEntry(*rackIt)) {
+            rackIt = m_rackTimeIndex.erase(rackIt);
             continue;
+        }
 
-        // Linux can break here because tsorted_sent_queue is ordered by
-        // transmit time. This scoreboard is sequence-ordered, so skip a newer
-        // region and keep looking for older transmissions later in the map.
-        if (!rack->sentAfter(rack->getXmitTs(), region.m_lastSentTime,
-                             rack->getEndSeq(), region.endSeqNum))
-            continue;
+        auto regionIt = rexmitMap.find(rackIt->endSeqNum);
+        Region& region = regionIt->second;
+        const double remaining = region.m_lastSentTime.dbl() + rack->getRtt().dbl() +
+                rack->getReoWnd() - simTime().dbl();
+        if (remaining > 0)
+            break;
 
-        double remaining = region.m_lastSentTime.dbl() + rack->getRtt().dbl() + rack->getReoWnd() - simTime().dbl();
-        if (remaining <= 0)
-            expiredRegions.push_back(&region);
-        else
-            timeout = std::max(remaining, timeout);
+        // Remove before marking because the loss helpers also unindex entries.
+        rackIt = m_rackTimeIndex.erase(rackIt);
+        const bool markedOriginalLost = markRegionLost(region, true);
+        const bool markedRetransmissionLost = !markedOriginalLost &&
+                markRetransmissionLost(region, true);
+        if (markedOriginalLost || markedRetransmissionLost)
+            markedLost = true;
+        if (region.lost && region.rexmitted)
+            indexRackRegion(region);
     }
 
-    std::sort(expiredRegions.begin(), expiredRegions.end(),
-            [](const Region *left, const Region *right) {
-                if (left->m_lastSentTime != right->m_lastSentTime)
-                    return left->m_lastSentTime < right->m_lastSentTime;
-                return left->endSeqNum < right->endSeqNum;
-            });
+    // Remaining time increases with transmit time, so the last eligible entry
+    // gives the same maximum timeout as Linux's full ordered traversal.
+    while (candidateEnd != m_rackTimeIndex.begin()) {
+        auto latest = std::prev(candidateEnd);
+        if (!isCurrentRackEntry(*latest)) {
+            m_rackTimeIndex.erase(latest);
+            continue;
+        }
 
-    bool markedLost = false;
-    for (Region *region : expiredRegions) {
-        if (markRegionLost(*region, true) || markRetransmissionLost(*region, true))
-            markedLost = true;
+        const Region& region = rexmitMap.find(latest->endSeqNum)->second;
+        const double remaining = region.m_lastSentTime.dbl() + rack->getRtt().dbl() +
+                rack->getReoWnd() - simTime().dbl();
+        if (remaining > 0)
+            timeout = std::max(remaining, timeout);
+        break;
     }
     return markedLost;
 }

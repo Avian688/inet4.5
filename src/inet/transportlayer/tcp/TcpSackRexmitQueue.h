@@ -10,6 +10,7 @@
 #include "inet/transportlayer/tcp/TcpConnection.h"
 #include "inet/transportlayer/tcp_common/TcpHeader.h"
 #include "TcpRack.h"
+#include <set>
 #include <tuple>
 #include <vector>
 namespace inet {
@@ -49,10 +50,22 @@ class INET_API TcpSackRexmitQueue
         bool m_isAppLimited = false;
     };
 
+    struct RackTimeKey {
+        simtime_t sentTime = SIMTIME_ZERO;
+        uint32_t endSeqNum = 0;
+
+        bool operator<(const RackTimeKey& other) const
+        {
+            return sentTime < other.sentTime ||
+                    (sentTime == other.sentTime && endSeqNum < other.endSeqNum);
+        }
+    };
+
     typedef std::list<Region> RexmitQueue;
     RexmitQueue rexmitQueue; // rexmitQueue is ordered by seqnum, and doesn't have overlapped Regions
     std::map<uint32_t, Region> rexmitMap;
     std::map<uint32_t, Region> backupRexmitMap;
+    std::set<RackTimeKey> m_rackTimeIndex;
     uint32_t begin; // 1st sequence number stored
     uint32_t end; // last sequence number stored + 1
 
@@ -248,6 +261,12 @@ class INET_API TcpSackRexmitQueue
     virtual uint32_t getTotalRetransmitted() {return m_retrans;};
 
   protected:
+    void indexRackRegion(const Region& region);
+
+    void unindexRackRegion(const Region& region);
+
+    bool isCurrentRackEntry(const RackTimeKey& key) const;
+
     bool markRegionLost(Region& region, bool recordRecentLossSample);
 
     bool markRetransmissionLost(Region& region, bool recordRecentLossSample);
