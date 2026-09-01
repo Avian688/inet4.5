@@ -105,6 +105,8 @@ void TcpConnection::process_ACCEPT(TcpEventCode& event, TcpCommand *tcpCommand, 
     listeningSocketId = -1;
     sendEstabIndicationToApp();
     sendAvailableDataToApp();
+    if (fsm.getState() == TCP_S_CLOSE_WAIT)
+        sendIndicationToApp(TCP_I_PEER_CLOSED);
     delete acceptCommand;
     delete msg;
 }
@@ -331,4 +333,3 @@ void TcpConnection::process_QUEUE_BYTES_LIMIT(TcpEventCode& event, TcpCommand *t
 
 } // namespace tcp
 } // namespace inet
-

@@ -622,7 +622,10 @@ void TcpConnection::stateEntered(int state, int oldState, TcpEventCode event)
         case TCP_S_FIN_WAIT_1:
         case TCP_S_FIN_WAIT_2:
         case TCP_S_CLOSING:
-            if (state == TCP_S_CLOSE_WAIT)
+            // A handshake-completing segment may also carry FIN. The child
+            // socket is not registered with the application dispatcher until
+            // its ACCEPT command arrives, so defer this indication until then.
+            if (state == TCP_S_CLOSE_WAIT && !isToBeAccepted())
                 sendIndicationToApp(TCP_I_PEER_CLOSED);
             // whether connection setup succeeded (ESTABLISHED) or not (others),
             // cancel these timers
@@ -655,4 +658,3 @@ void TcpConnection::stateEntered(int state, int oldState, TcpEventCode event)
 
 } // namespace tcp
 } // namespace inet
-

@@ -372,13 +372,12 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
         //ASSERT(i != rexmitQueue.end());
         //ASSERT(seqLE(i->beginSeqNum, fromSeqNum) && seqLess(fromSeqNum, i->endSeqNum));
 
-        if (iter->second.beginSeqNum != fromSeqNum) {// is this used? Ignore this edge case for now! TODO
+        if (iter->second.beginSeqNum != fromSeqNum) {
             // chunk item
-            std::cout << "\n WEIRD CASE HAPPENING" << endl;
+            EV_TRACE << "Splitting retransmission region at " << fromSeqNum << "\n";
             region = iter->second; //TODO CHECK THIS
             region.endSeqNum = fromSeqNum;
             //rexmitQueue.insert(i, region);
-            m_sentSize += toSeqNum - fromSeqNum;
             auto inserted = rexmitMap.insert({region.endSeqNum, region});
             if (inserted.second)
                 indexRackRegion(inserted.first->second);
@@ -400,7 +399,7 @@ void TcpSackRexmitQueue::enqueueSentData(uint32_t fromSeqNum, uint32_t toSeqNum)
         }
 
         if (fromSeqNum != toSeqNum) { //rarely called? this is called if the block does not exist AND fromSeqNum is not the end of the current queue
-            std::cout << "\n WEIRD CASE HAPPENING 2" << endl;
+            EV_TRACE << "Splitting retransmission region at " << toSeqNum << "\n";
             bool beforeEnd = (iter != rexmitMap.end());
             //ASSERT(i == rexmitQueue.end() || seqLess(i->beginSeqNum, toSeqNum));
             ASSERT(iter == rexmitMap.end() || seqLess(iter->second.beginSeqNum, toSeqNum));
