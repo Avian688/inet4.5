@@ -67,8 +67,12 @@ Packet *TcpSendQueue::createSegmentWithBytes(uint32_t fromSeq, uint32_t numBytes
     sprintf(msgname, "tcpseg(l=%u)", (unsigned int)numBytes);
 
     Packet *tcpSegment = new Packet(msgname);
-    const auto& payload = dataBuffer.peekAt(B(fromSeq - begin), B(numBytes)); // get data from buffer
-    tcpSegment->insertAtBack(payload);
+    // A header-only segment has no payload chunk (e.g. a FIN retransmission).
+    // ChunkQueue::peekAt rejects zero-length chunks with its default flags.
+    if (numBytes != 0) {
+        const auto& payload = dataBuffer.peekAt(B(fromSeq - begin), B(numBytes));
+        tcpSegment->insertAtBack(payload);
+    }
     return tcpSegment;
 }
 
@@ -85,4 +89,3 @@ void TcpSendQueue::discardUpTo(uint32_t seqNum)
 } // namespace tcp
 
 } // namespace inet
-
